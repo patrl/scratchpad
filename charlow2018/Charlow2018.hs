@@ -18,6 +18,8 @@ type T = Bool
 -- (type flexible) Assignments
 type Assignment a = Var -> a
 
+type G = Assignment Ent
+
 -- One-place predicates
 
 _left :: Ent -> T
@@ -84,6 +86,9 @@ pro n = \g -> g n
 (⍟) = (<*>)
 
 -- TODO: define flattener
+μ :: (G -> G -> Ent) -> G -> Ent
+μ m = \g -> (m g) g
+
 
 -- A helper function for taking an assignment function g, and returning a modified assignment function g' relative to a variable i and an individual x.
 modify :: (Assignment a) -> Var -> a -> (Assignment a)
@@ -102,3 +107,11 @@ abstraction n f = \g -> (\x -> f (modify g n x))
 -- >>> ((ρ _eachOfTomAndHarry) <*> (abstraction Var_1 (((ρ _likes) <*> ((ρ _brother) <*> (pro Var_1))) <*> (pro Var_1)))) g4
 -- True
 
+-- Binding reconstruction
+-- >>> ((pro Var_2) :: G -> G -> Ent)
+-- <interactive>:2448:4: error:
+--     • Couldn't match type ‘Ent’ with ‘G -> Ent’
+--       Expected type: G -> G -> Ent
+--         Actual type: Assignment (G -> Ent) -> G -> Ent
+--     • In the expression: ((pro Var_2) :: G -> G -> Ent)
+--       In an equation for ‘it’: it = ((pro Var_2) :: G -> G -> Ent)
