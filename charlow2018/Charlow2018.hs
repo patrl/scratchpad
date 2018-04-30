@@ -16,23 +16,23 @@ data Ent = Tom | Dick | Harry deriving (Eq, Show)
 type T = Bool
 
 -- (type flexible) Assignments
-type Assignment a = Var -> a
+type Assignment a = Var → a
 
 type G = Assignment Ent
 
 -- One-place predicates
 
-_left :: Ent -> T
+_left ∷ Ent → T
 _left Tom = True
 _left _ = False
 
-_isAngry :: Ent -> T
+_isAngry ∷ Ent → T
 _isAngry Tom = False
 _isAngry _ = True
 
 -- Two-place predicates
 
-_likes :: Ent -> Ent -> T
+_likes ∷ Ent → Ent → T
 _likes Harry Tom = True
 _likes Tom Harry = True
 _likes Tom Tom = True
@@ -41,77 +41,69 @@ _likes _ _ = False
 
 -- The brother function
 
-_brother :: Ent -> Ent
+_brother ∷ Ent → Ent
 _brother Tom = Harry
 _brother Harry = Tom
 
 -- Quantifiers
 
-_eachOfTomAndHarry :: (Ent -> T) -> T
+_eachOfTomAndHarry ∷ (Ent → T) → T
 _eachOfTomAndHarry f = (f Tom == True) && (f Harry == True)
 
 -- Contexts
 
-g1 :: Assignment Ent
+g1 ∷ Assignment Ent
 g1 Var_1 = Tom
 g1 Var_2 = Dick
 g1 Var_3 = Harry
 
-g2 :: Assignment Ent
+g2 ∷ Assignment Ent
 g2 Var_1 = Tom
 g2 Var_2 = Tom
 g2 Var_3 = Tom
 
-g3 :: Assignment Ent
+g3 ∷ Assignment Ent
 g3 Var_1 = Tom
 g3 Var_2 = Dick
 g3 Var_3 = Dick
 
-g4 :: Assignment Ent
+g4 ∷ Assignment Ent
 g4 Var_1 = Tom
 g4 Var_2 = Harry
 g4 Var_3 = Dick
 
-g5 :: Assignment ((Assignment Ent) -> Ent)
-g5 Var_2 = \g -> _brother (g Var_1)
+g5 ∷ Assignment (Ent → T)
+g5 Var_1 = _left
+g5 Var_2 = _likes
+g5 Var_3 = _isAngry
 
-pro :: Var -> ((Assignment a) -> a)
-pro n = \g -> g n
+pro ∷ Var → ((Assignment a) → a)
+pro n = \g → g n
 
-  -- We can just use the applicative instance declaration for ((->) a).
-ρ :: a -> ((Assignment c) -> a)
+  -- We can just use the applicative instance declaration for ((→) a).
+ρ ∷ a → ((Assignment c) → a)
 ρ = pure
 
-(⍟) :: ((Assignment c) -> (a -> b)) -> ((Assignment c) -> a) -> ((Assignment c) -> b)
+(⍟) ∷ ((Assignment c) → (a → b)) → ((Assignment c) → a) → ((Assignment c) → b)
 (⍟) = (<*>)
 
 -- TODO: define flattener
-μ :: (G -> G -> Ent) -> G -> Ent
-μ m = \g -> (m g) g
-
+-- μ ∷ (G → G → Ent) → G → Ent
+-- μ m = \g → (m g) g
 
 -- A helper function for taking an assignment function g, and returning a modified assignment function g' relative to a variable i and an individual x.
-modify :: (Assignment a) -> Var -> a -> (Assignment a)
+modify ∷ (Assignment a) → Var → a → (Assignment a)
 modify g i x = g' where
   g' j
     | j == i = x
     | otherwise = g j
 
 -- categorematic abstraction (p. 5, definition 13), relative to a variable n.
-abstraction :: Var -> ((Assignment b) -> a) -> (Assignment b) -> b -> a
-abstraction n f = \g -> (\x -> f (modify g n x))
+abstraction ∷ Var → ((Assignment b) → a) → (Assignment b) → b → a
+abstraction n f = \g → (\x → f (modify g n x))
 
 -- Subject raising (p. 3, Fig. 2)
--- >>> ((abstraction Var_1) $ (ρ _left) ⍟ (pro Var_1)) <*> (ρ Tom) $ g3
+-- >>> ((abstraction Var_1) $ (ρ _left) ⍟ (pro Var_1)) ⍟ (ρ Tom) $ g3
 
--- >>> ((ρ _eachOfTomAndHarry) <*> (abstraction Var_1 (((ρ _likes) <*> ((ρ _brother) <*> (pro Var_1))) <*> (pro Var_1)))) g4
+-- >>> ((ρ _eachOfTomAndHarry) ⍟ (abstraction Var_1 (((ρ _likes) ⍟ ((ρ _brother) ⍟ (pro Var_1))) ⍟ (pro Var_1)))) g4
 -- True
-
--- Binding reconstruction
--- >>> ((pro Var_2) :: G -> G -> Ent)
--- <interactive>:2448:4: error:
---     • Couldn't match type ‘Ent’ with ‘G -> Ent’
---       Expected type: G -> G -> Ent
---         Actual type: Assignment (G -> Ent) -> G -> Ent
---     • In the expression: ((pro Var_2) :: G -> G -> Ent)
---       In an equation for ‘it’: it = ((pro Var_2) :: G -> G -> Ent)
