@@ -45,8 +45,8 @@ _brother Harry = Tom
 
 -- Quantifiers
 
-_everyone :: (Ent -> T) -> T
-_everyone f = (f Tom == True) && (f Dick == True) && (f Harry == True)
+_eachOfTomAndHarry :: (Ent -> T) -> T
+_eachOfTomAndHarry f = (f Tom == True) && (f Harry == True)
 
 -- Contexts
 
@@ -70,7 +70,10 @@ g4 Var_1 = Tom
 g4 Var_2 = Harry
 g4 Var_3 = Dick
 
-pro :: Var -> (Assignment a) -> a
+g5 :: Assignment ((Assignment Ent) -> Ent)
+g5 Var_2 = \g -> _brother (g Var_1)
+
+pro :: Var -> ((Assignment a) -> a)
 pro n = \g -> g n
 
   -- We can just use the applicative instance declaration for ((->) a).
@@ -80,9 +83,7 @@ pro n = \g -> g n
 (⍟) :: ((Assignment c) -> (a -> b)) -> ((Assignment c) -> a) -> ((Assignment c) -> b)
 (⍟) = (<*>)
 
--- TODO: the flattener (p. 8, definition 19)
--- μ :: (Assignment (Assignment a)) -> (Assignment a)
--- μ m = \g -> ((m g) g)
+-- TODO: define flattener
 
 -- A helper function for taking an assignment function g, and returning a modified assignment function g' relative to a variable i and an individual x.
 modify :: (Assignment a) -> Var -> a -> (Assignment a)
@@ -97,3 +98,7 @@ abstraction n f = \g -> (\x -> f (modify g n x))
 
 -- Subject raising (p. 3, Fig. 2)
 -- >>> ((abstraction Var_1) $ (ρ _left) ⍟ (pro Var_1)) <*> (ρ Tom) $ g3
+
+-- >>> ((ρ _eachOfTomAndHarry) <*> (abstraction Var_1 (((ρ _likes) <*> ((ρ _brother) <*> (pro Var_1))) <*> (pro Var_1)))) g4
+-- True
+
