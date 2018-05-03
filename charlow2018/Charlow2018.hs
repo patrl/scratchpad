@@ -15,7 +15,8 @@ type T = Bool
 -- (type flexible) Assignments
 type Assignment a = Var → a
 
-type G = Assignment Ent
+-- G is the generalized type constructor fr assignment sensitive meanings.
+type G a b = (Assignment a) → b
 
 -- One-place predicates
 
@@ -82,14 +83,17 @@ g5 Var_1 = \g -> _brother (g Var_2)
 pro ∷ Var → Assignment a → a
 pro n = \g → g n
 
-pro' ∷ Var → Assignment a → Assignment a → a
-pro' n = \h → \g → g n
+-- pro' ∷ Var → Assignment a → Assignment a → a
+-- pro' n = \h → \g → g n
+
+pro'' ∷ Var → (G (G Ent Ent) (G Ent Ent))
+pro'' n = \g → g n
 
   -- We can just use the applicative instance declaration for ((→) a).
-ρ ∷ a → ((Assignment c) → a)
+ρ ∷ a → G c a
 ρ = pure
 
-(⍟) ∷ ((Assignment c) → (a → b)) → ((Assignment c) → a) → ((Assignment c) → b)
+(⍟) ∷ (G c (a → b)) → (G c a) → (G c b)
 (⍟) = (<*>)
 
 -- A helper function for taking an assignment function g, and returning a modified assignment function g' relative to a variable i and an individual x.
@@ -109,6 +113,7 @@ abstraction n f = \g → (\x → f (modify g n x))
 
 -- Subject raising (p. 3, Fig. 2)
 -- >>> ((abstraction Var_1) $ (ρ _left) ⍟ (pro Var_1)) ⍟ (ρ Tom) $ g3
+-- True
 
 -- >>> ((ρ _eachOfTomAndHarry) ⍟ (abstraction Var_1 (((ρ _likes) ⍟ ((ρ _brother) ⍟ (pro Var_1))) ⍟ (pro Var_1)))) g4
 -- True
