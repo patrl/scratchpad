@@ -10,7 +10,6 @@ module Charlow2018 where
 -- Variables
 data Var = Var_1 | Var_2 | Var_3 deriving (Eq, Show)
 
--- The domain
 data Ent = Tom | Dick | Harry deriving (Eq, Show)
 
 -- Truth values
@@ -73,13 +72,15 @@ g4 Var_1 = Tom
 g4 Var_2 = Harry
 g4 Var_3 = Dick
 
-g5 ∷ Assignment (Ent → T)
-g5 Var_1 = _left
-g5 Var_2 = _likes
-g5 Var_3 = _isAngry
+g5 ∷ Assignment ((Assignment Ent) → Ent)
+g5 Var_1 = \g -> _brother (g Var_2)
 
 pro ∷ Var → ((Assignment a) → a)
 pro n = \g → g n
+
+ -- Higher-order pronoun meaning
+pro' ∷ Var → Assignment a → Assignment a → a
+pro' n = \g → (\h → h n)
 
   -- We can just use the applicative instance declaration for ((→) a).
 ρ ∷ a → ((Assignment c) → a)
@@ -87,10 +88,6 @@ pro n = \g → g n
 
 (⍟) ∷ ((Assignment c) → (a → b)) → ((Assignment c) → a) → ((Assignment c) → b)
 (⍟) = (<*>)
-
--- TODO: define flattener
--- μ ∷ (G → G → Ent) → G → Ent
--- μ m = \g → (m g) g
 
 -- A helper function for taking an assignment function g, and returning a modified assignment function g' relative to a variable i and an individual x.
 modify ∷ (Assignment a) → Var → a → (Assignment a)
@@ -103,8 +100,16 @@ modify g i x = g' where
 abstraction ∷ Var → ((Assignment b) → a) → (Assignment b) → b → a
 abstraction n f = \g → (\x → f (modify g n x))
 
+μ:: ((Assignment a) → (Assignment a) → a) → (Assignment a) → a
+μ m = \g -> (m g) g
+
 -- Subject raising (p. 3, Fig. 2)
 -- >>> ((abstraction Var_1) $ (ρ _left) ⍟ (pro Var_1)) ⍟ (ρ Tom) $ g3
 
 -- >>> ((ρ _eachOfTomAndHarry) ⍟ (abstraction Var_1 (((ρ _likes) ⍟ ((ρ _brother) ⍟ (pro Var_1))) ⍟ (pro Var_1)))) g4
+-- True
+
+  -- Binding reconstruction:
+  -- "His brother, each of Tom and Harry likes"
+  -- >>> ((abstraction Var_2 ((ρ _eachOfTomAndHarry) ⍟ (abstraction Var_3 (((ρ _likes) ⍟ (μ (pro' Var_2))) ⍟ (pro Var_3))))) ⍟ ((ρ _brother) ⍟ (pro Var_3))) g1
 -- True
