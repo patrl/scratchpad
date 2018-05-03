@@ -1,4 +1,4 @@
-{-# LANGUAGE UnicodeSyntax, ScopedTypeVariables #-}
+{-# LANGUAGE UnicodeSyntax, ScopedTypeVariables, TypeInType #-}
 
 module Charlow2018 where
 
@@ -72,12 +72,18 @@ g4 Var_3 = Dick
 g5 ∷ Assignment ((Assignment Ent) → Ent)
 g5 Var_1 = \g -> _brother (g Var_2)
 
-pro ∷ Var → ((Assignment a) → a)
+  -- Possible recursive datatype for pronouns
+
+-- data Pronoun a =  Pro (Var → (Assignment a) → a) | Pro' (Var → (Assignment a) → (Pronoun a))
+
+-- pro ∷ Pronoun Ent
+-- pro = Pro (\n → \g → g n)
+
+pro ∷ Var → Assignment a → a
 pro n = \g → g n
 
- -- Higher-order pronoun meaning
 pro' ∷ Var → Assignment a → Assignment a → a
-pro' n = \g → (\h → h n)
+pro' n = \h → \g → g n
 
   -- We can just use the applicative instance declaration for ((→) a).
 ρ ∷ a → ((Assignment c) → a)
