@@ -1,8 +1,5 @@
 {-# LANGUAGE UnicodeSyntax, ScopedTypeVariables #-}
 
--- TODO Binding reconstruction etc.
--- TODO figure out how to generate possible contexts automatically -- djinn might be useful, or maybe co-arbitrary in quickcheck.
-
 module Charlow2018 where
 
 -- The model:
@@ -100,7 +97,8 @@ modify g i x = g' where
 abstraction ∷ Var → ((Assignment b) → a) → (Assignment b) → b → a
 abstraction n f = \g → (\x → f (modify g n x))
 
-μ:: ((Assignment a) → (Assignment a) → a) → (Assignment a) → a
+-- flattener function
+μ ∷ ((Assignment a) → (Assignment a) → a) → (Assignment a) → a
 μ m = \g -> (m g) g
 
 -- Subject raising (p. 3, Fig. 2)
