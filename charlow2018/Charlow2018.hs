@@ -37,21 +37,18 @@ _g5 Var_1 = G (\g -> _brother (g Var_2))
 
 type Pro a b = Var → G a b
 
-type Pro' b = Var → G' b
+-- type Pro' b = Var → G' b
 
 -- Simple type-flexible pronoun
 _pro ∷ Pro a a
 _pro n = G (\g → g n)
 
--- doubly assignment-sensitive pro
-_pro' ∷ Pro' Ent
-_pro' n = Compose $ G (\h → (G (\g → g n)))
+-- _pro' ∷ Pro' Ent
+-- _pro' n = Compose $ G (\h → (G (\g → g n)))
 
+-- doubly assignment-sensitive pro
 _pro'' :: Pro b (G a a)
 _pro'' n = G (\g -> G (\h -> h n))
-
- -- _pro' :: Pro Ent (G Ent Ent)
- -- _pro' n = G (\(h :: Assignment Ent) -> (G (\(g :: Assignment Ent) -> g n))
 
 -- G is the generalized type constructor for assignment sensitive meanings.
 newtype G a b = G ((Assignment a) → b)
@@ -65,7 +62,7 @@ instance Applicative (G a) where
   pure b = G (\g -> b)
   (<*>) (G aToB) (G a) = G (\g -> ((aToB g) (a g)))
 
-type G' = Compose (G Ent) (G Ent)
+-- type G' = Compose (G Ent) (G Ent)
 
 -- Using ρ to ape Charlow's notation for pure.
 ρ ∷ b → G a b
