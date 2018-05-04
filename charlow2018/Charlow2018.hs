@@ -8,6 +8,32 @@ module Charlow2018 where
 
 import Model
 import Data.Functor.Compose
+import Control.Applicative
+
+-- Contexts
+
+_g1 ∷ Assignment Ent
+_g1 Var_1 = Tom
+_g1 Var_2 = Dick
+_g1 Var_3 = Harry
+
+_g2 ∷ Assignment Ent
+_g2 Var_1 = Tom
+_g2 Var_2 = Tom
+_g2 Var_3 = Tom
+
+_g3 ∷ Assignment Ent
+_g3 Var_1 = Tom
+_g3 Var_2 = Dick
+_g3 Var_3 = Dick
+
+_g4 ∷ Assignment Ent
+_g4 Var_1 = Tom
+_g4 Var_2 = Harry
+_g4 Var_3 = Dick
+
+_g5 ∷ Assignment (G Ent Ent)
+_g5 Var_1 = G (\g -> _brother (g Var_2))
 
 type Pro a b = Var → G a b
 
@@ -20,6 +46,9 @@ _pro n = G (\g → g n)
 -- doubly assignment-sensitive pro
 _pro' ∷ Pro' Ent
 _pro' n = Compose $ G (\h → (G (\g → g n)))
+
+_pro'' :: Pro b (G a a)
+_pro'' n = G (\g -> G (\h -> h n))
 
  -- _pro' :: Pro Ent (G Ent Ent)
  -- _pro' n = G (\(h :: Assignment Ent) -> (G (\(g :: Assignment Ent) -> g n))
@@ -91,4 +120,9 @@ fromCompose (Compose a) = a
 
 -- Binding reconstruction
 
--- >>> :t (((pure :: b -> G' b) _eachOfTomAndHarry) <*> (Compose ((_Λ Var_1 (fromCompose (((pure :: b -> G' b) _likes) <*> (_pro' Var_2)))))))
+-- >>> :t fromG (fromG ((<*>) (_Λ Var_2 (liftA2 (<*>) ((pure . pure) _eachOfTomAndHarry) ((<*>) (pure (_Λ Var_1)) (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (_pro'' Var_2)) (_pro Var_1))))) (pure ((pure _brother) <*> (_pro Var_1)))) $ _g5 ) _g4
+-- fromG (fromG ((<*>) (_Λ Var_2 (liftA2 (<*>) ((pure . pure) _eachOfTomAndHarry) ((<*>) (pure (_Λ Var_1)) (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (_pro'' Var_2)) (_pro Var_1))))) (pure ((pure _brother) <*> (_pro Var_1)))) $ _g5 ) _g4
+--   :: T
+
+-- >>> :t (pure _brother) <*> (_pro Var_1)
+-- (pure _brother) <*> (_pro Var_1) :: G Ent Ent
