@@ -1,8 +1,6 @@
 {-# LANGUAGE UnicodeSyntax, ScopedTypeVariables #-}
 
 -- TODO: get binding reconstruction working
--- TODO: redefine application to make it compatible with composed applicatives.
-
 
 module Charlow2018 where
 
@@ -42,6 +40,10 @@ type Pro a b = Var → G a b
 -- Simple type-flexible pronoun
 _pro ∷ Pro a a
 _pro n = G (\g → g n)
+
+_proDP n = (_pro ∷ Pro Ent Ent) n
+
+_proVP n = (_pro ∷ Pro (Ent → T) (Ent → T)) n
 
 -- _pro' ∷ Pro' Ent
 -- _pro' n = Compose $ G (\h → (G (\g → g n)))
@@ -88,7 +90,7 @@ fromG ∷ (G a b) → (Assignment a) → b
 fromG (G f) = f
 
 -- helper function for the Compose newtype wrapper
-fromCompose :: Compose f g a → f (g a)
+fromCompose ∷ Compose f g a → f (g a)
 fromCompose (Compose a) = a
 
 -- Subject raising (p. 3, Fig. 2)
@@ -117,9 +119,15 @@ fromCompose (Compose a) = a
 
 -- Binding reconstruction
 
--- >>> :t fromG (fromG ((<*>) (_Λ Var_2 (liftA2 (<*>) ((pure . pure) _eachOfTomAndHarry) ((<*>) (pure (_Λ Var_1)) (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (_pro'' Var_2)) (_pro Var_1))))) (pure ((pure _brother) <*> (_pro Var_1)))) $ _g5 ) _g4
+-- >>> :t (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (pure $_proDP Var_2)) (pure $_proDP Var_1))
+-- (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (pure $_proDP Var_2)) (pure $_proDP Var_1))
+--   :: Applicative f => f (G Ent T)
+
+
 -- fromG (fromG ((<*>) (_Λ Var_2 (liftA2 (<*>) ((pure . pure) _eachOfTomAndHarry) ((<*>) (pure (_Λ Var_1)) (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (_pro'' Var_2)) (_pro Var_1))))) (pure ((pure _brother) <*> (_pro Var_1)))) $ _g5 ) _g4
 --   :: T
 
 -- >>> :t (pure _brother) <*> (_pro Var_1)
 -- (pure _brother) <*> (_pro Var_1) :: G Ent Ent
+
+-- Pro
