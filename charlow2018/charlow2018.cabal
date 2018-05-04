@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Charlow2018
-  -- other-modules:
+  other-modules:       Model
   -- other-extensions:
   build-depends:       base >=4.10 && <4.11
   -- hs-source-dirs:
