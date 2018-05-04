@@ -140,3 +140,5 @@ fromG (G f) = f
 --   :: G Ent (Ent -> Ent -> T)
   -- >>> :t (_pro Var_2)
 -- (_pro Var_2) :: G a a
+
+  -- >>> :i ((_pro' :: Pro Ent (G Ent Ent)) Var_1)
