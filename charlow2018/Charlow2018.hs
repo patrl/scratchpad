@@ -1,4 +1,6 @@
-{-# LANGUAGE UnicodeSyntax, ScopedTypeVariables, TypeInType #-}
+{-# LANGUAGE UnicodeSyntax, ScopedTypeVariables #-}
+
+-- TODO: get binding reconstruction working
 
 module Charlow2018 where
 
@@ -14,9 +16,6 @@ type T = Bool
 
 -- (type flexible) Assignments
 type Assignment a = Var → a
-
--- G is the generalized type constructor fr assignment sensitive meanings.
-type G a b = (Assignment a) → b
 
 -- One-place predicates
 
@@ -50,49 +49,56 @@ _eachOfTomAndHarry f = (f Tom == True) && (f Harry == True)
 
 -- Contexts
 
-g1 ∷ Assignment Ent
-g1 Var_1 = Tom
-g1 Var_2 = Dick
-g1 Var_3 = Harry
+_g1 ∷ Assignment Ent
+_g1 Var_1 = Tom
+_g1 Var_2 = Dick
+_g1 Var_3 = Harry
 
-g2 ∷ Assignment Ent
-g2 Var_1 = Tom
-g2 Var_2 = Tom
-g2 Var_3 = Tom
+_g2 ∷ Assignment Ent
+_g2 Var_1 = Tom
+_g2 Var_2 = Tom
+_g2 Var_3 = Tom
 
-g3 ∷ Assignment Ent
-g3 Var_1 = Tom
-g3 Var_2 = Dick
-g3 Var_3 = Dick
+_g3 ∷ Assignment Ent
+_g3 Var_1 = Tom
+_g3 Var_2 = Dick
+_g3 Var_3 = Dick
 
-g4 ∷ Assignment Ent
-g4 Var_1 = Tom
-g4 Var_2 = Harry
-g4 Var_3 = Dick
+_g4 ∷ Assignment Ent
+_g4 Var_1 = Tom
+_g4 Var_2 = Harry
+_g4 Var_3 = Dick
 
-g5 ∷ Assignment ((Assignment Ent) → Ent)
-g5 Var_1 = \g -> _brother (g Var_2)
+_g5 ∷ Assignment ((Assignment Ent) → Ent)
+_g5 Var_1 = \g -> _brother (g Var_2)
 
-  -- Possible recursive datatype for pronouns
+type Pro a b = Var → G a b
 
--- data Pronoun a =  Pro (Var → (Assignment a) → a) | Pro' (Var → (Assignment a) → (Pronoun a))
+-- Simple type-flexible pronoun
+_pro ∷ Pro a a
+_pro n = G (\g → g n)
 
--- pro ∷ Pronoun Ent
--- pro = Pro (\n → \g → g n)
+-- doubly assignment-sensitive pro
+_pro' ∷ Pro b (G a a)
+_pro' n = G (\h → (G (\g → g n)))
 
-pro ∷ Var → Assignment a → a
-pro n = \g → g n
+-- G is the generalized type constructor for assignment sensitive meanings.
+newtype G a b = G ((Assignment a) → b)
 
--- pro' ∷ Var → Assignment a → Assignment a → a
--- pro' n = \h → \g → g n
+-- The Functor instance for the type constructor G a
+instance Functor (G a) where
+  fmap f (G b) = G (\n -> (f (b n)))
 
-pro'' ∷ Var → (G (G Ent Ent) (G Ent Ent))
-pro'' n = \g → g n
+-- The applicative instance for the type constructor G a
+instance Applicative (G a) where
+  pure b = G (\g -> b)
+  (<*>) (G aToB) (G a) = G (\g -> ((aToB g) (a g)))
 
-  -- We can just use the applicative instance declaration for ((→) a).
-ρ ∷ a → G c a
+-- Using ρ to ape Charlow's notation for pure.
+ρ ∷ b → G a b
 ρ = pure
 
+-- Using (⍟) to ape Charlow's notation for <*>
 (⍟) ∷ (G c (a → b)) → (G c a) → (G c b)
 (⍟) = (<*>)
 
@@ -103,22 +109,34 @@ modify g i x = g' where
     | j == i = x
     | otherwise = g j
 
--- categorematic abstraction (p. 5, definition 13), relative to a variable n.
-abstraction ∷ Var → ((Assignment b) → a) → (Assignment b) → b → a
-abstraction n f = \g → (\x → f (modify g n x))
+-- Abstraction relative to a variable.
+abstraction ∷ Var → (G a b) → (G a (a → b))
+abstraction n (G f) = G (\g → (\x → f (modify g n x)))
 
--- flattener function
-μ ∷ ((Assignment a) → (Assignment a) → a) → (Assignment a) → a
-μ m = \g -> (m g) g
+-- helper functions for the newtype wrapper
+fromG ∷ (G a b) → (Assignment a) → b
+fromG (G f) = f
 
 -- Subject raising (p. 3, Fig. 2)
--- >>> ((abstraction Var_1) $ (ρ _left) ⍟ (pro Var_1)) ⍟ (ρ Tom) $ g3
+-- >>> ((fromG (((abstraction Var_1) $ (ρ _left) ⍟ (_pro Var_1)) ⍟ (ρ Tom))) _g3)
 -- True
 
--- >>> ((ρ _eachOfTomAndHarry) ⍟ (abstraction Var_1 (((ρ _likes) ⍟ ((ρ _brother) ⍟ (pro Var_1))) ⍟ (pro Var_1)))) g4
+-- Quantificational binding
+-- >>> (fromG ((ρ _eachOfTomAndHarry) ⍟ (abstraction Var_1 (((ρ _likes) ⍟ ((ρ _brother) ⍟ (_pro Var_1))) ⍟ (_pro Var_1))))) _g4
 -- True
+-- (((pure . pure) _likes) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1))
+-- (((pure . pure) _likes) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1))
+--   :: G Ent (Ent -> Ent -> T)
 
-  -- Binding reconstruction:
-  -- "His brother, each of Tom and Harry likes"
-  -- >>> ((abstraction Var_2 ((ρ _eachOfTomAndHarry) ⍟ (abstraction Var_3 (((ρ _likes) ⍟ (μ (pro' Var_2))) ⍟ (pro Var_3))))) ⍟ ((ρ _brother) ⍟ (pro Var_3))) g1
--- True
+  -- >>> :t (pure (pure _likes)) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1)
+-- (pure (pure _likes)) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1)
+--   :: G Ent (Ent -> Ent -> T)
+
+-- >>> :t ((pure . pure) ((pure _brother) <*> (_pro Var_2)))
+-- ((pure . pure) ((pure _brother) <*> (_pro Var_2)))
+--   :: (Applicative f2, Applicative f1) => f1 (f2 (G Ent Ent))
+
+-- (((pure . pure) _likes) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1))
+--   :: G Ent (Ent -> Ent -> T)
+  -- >>> :t (_pro Var_2)
+-- (_pro Var_2) :: G a a
