@@ -8,6 +8,10 @@ import Control.Applicative
 
 -- TODO: generalize
 
+-- from https://wiki.haskell.org/Compose
+-- compose :: [a -> a] -> a -> a
+-- compose fs v = foldl (flip (.)) id fs $ v
+
 toGraph1 f = [(x,(f x)) | x <- [(minBound) ..]]
 
 charFunc1 f = map fst (toGraph1 f)
