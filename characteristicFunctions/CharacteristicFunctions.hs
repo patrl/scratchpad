@@ -1,18 +1,23 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module CharacteristicFunctions where
 
 import Model
 
-  -- toGraph is the basic case, and generalizes to functions that don't end in T.
+import Control.Applicative
 
-type Pred1 = Ent -> T
+-- TODO: generalize
 
-type Pred2 = Ent -> Ent -> T
+toGraph1 f = [(x,(f x)) | x <- [(minBound) ..]]
 
-toGraph :: Pred1 -> [(Ent,T)]
-toGraph f = [(x,(f x)) | x <- dom]
+charFunc1 f = map fst (toGraph1 f)
 
-toSet :: Pred1 -> [Ent]
-toSet f = [x | x <- dom, f x == True]
+toGraph2 f = [(x,(uncurry f $ x)) | x <- (liftA2 (,) [(minBound) ..] [(minBound) ..] )]
 
-toSet' :: Pred2 -> [(Ent,Ent)]
-toSet' f = [(y,x) | x <- dom, y <- dom, (f x $ y) == True]
+charFunc2 f = map fst (toGraph2 f)
+
+toGraph3 f = [(x, ((uncurry . uncurry) f $ x)) | x <- (liftA2 (,) (liftA2 (,) [(minBound) ..] [(minBound) ..]) [(minBound) ..])]
+
+charFunc3 f = map fst (toGraph3 f)
+
+toGraph4 f = [(x, ((uncurry . uncurry . uncurry) f $ x)) | x <- (liftA2 (,) (liftA2 (,) (liftA2 (,) [(minBound) ..] [(minBound) ..]) [(minBound) ..]) [(minBound) ..])]

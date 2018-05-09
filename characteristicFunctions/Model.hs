@@ -48,10 +48,16 @@ _isAngry _ = True
 
 _likes ∷ Ent → Ent → T
 _likes Harry Tom = True
-_likes Tom Harry = True
+_likes Tom Harry = False
 _likes Tom Tom = True
 _likes Harry Harry = True
 _likes _ _ = False
+
+-- Three-place predicates
+_intro ∷ Ent → Ent → Ent → T
+_intro Harry Tom Dick = True
+_intro Harry Dick Tom = True
+_intro _ _ _ = False
 
 -- The brother function
 
