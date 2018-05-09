@@ -35,22 +35,16 @@ _g5 Var_1 = G (\g -> _brother (g Var_2))
 
 type Pro a b = Var → G a b
 
--- type Pro' b = Var → G' b
-
 -- Simple type-flexible pronoun
+-- pronouns have a unitary semantics
 _pro ∷ Pro a a
 _pro n = G (\g → g n)
+
+_proPaycheck = (_pro ∷ Pro (G Ent Ent) (G Ent Ent))
 
 _proDP n = (_pro ∷ Pro Ent Ent) n
 
 _proVP n = (_pro ∷ Pro (Ent → T) (Ent → T)) n
-
--- _pro' ∷ Pro' Ent
--- _pro' n = Compose $ G (\h → (G (\g → g n)))
-
--- doubly assignment-sensitive pro
-_pro'' :: Pro b (G a a)
-_pro'' n = G (\g -> G (\h -> h n))
 
 -- G is the generalized type constructor for assignment sensitive meanings.
 newtype G a b = G ((Assignment a) → b)
@@ -64,15 +58,22 @@ instance Applicative (G a) where
   pure b = G (\g -> b)
   (<*>) (G aToB) (G a) = G (\g -> ((aToB g) (a g)))
 
--- type G' = Compose (G Ent) (G Ent)
+-- Composition of G (G Ent Ent) and G Ent. Introduces an additional newtype wrapper.
+type G' = Compose (G (G Ent Ent)) (G Ent)
 
 -- Using ρ to ape Charlow's notation for pure.
 ρ ∷ b → G a b
 ρ = pure
 
+pure' ∷ b → G' b
+pure' = pure
+
 -- Using (⍟) to ape Charlow's notation for <*>
 (⍟) ∷ (G c (a → b)) → (G c a) → (G c b)
 (⍟) = (<*>)
+
+tie' ∷ (G' (a → b)) → (G' a) → (G' b)
+tie' = (<*>)
 
 -- A helper function for taking an assignment function g, and returning a modified assignment function g' relative to a variable i and an individual x.
 modify ∷ (Assignment a) → Var → a → (Assignment a)
@@ -100,34 +101,12 @@ fromCompose (Compose a) = a
 -- Quantificational binding
 -- >>> (fromG ((ρ _eachOfTomAndHarry) ⍟ (_Λ Var_1 (((ρ _likes) ⍟ ((ρ _brother) ⍟ (_pro Var_1))) ⍟ (_pro Var_1))))) _g4
 -- True
--- (((pure . pure) _likes) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1))
--- (((pure . pure) _likes) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1))
---   :: G Ent (Ent -> Ent -> T)
 
-  -- >>> :t (pure (pure _likes)) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1)
--- (pure (pure _likes)) <*> ((_pro' :: Pro Ent (G Ent Ent)) Var_1)
---   :: G Ent (Ent -> Ent -> T)
-
--- >>> :t ((pure . pure) ((pure _brother) <*> (_pro Var_2)))
--- ((pure . pure) ((pure _brother) <*> (_pro Var_2)))
---   :: (Applicative f2, Applicative f1) => f1 (f2 (G Ent Ent))
-
-  -- >>> :i ((_pro' :: Pro Ent (G Ent Ent)) Var_1)
--- <interactive>:1:2: error: parse error on input ‘(’
-
- -- _pro' :: Pro Ent (G Ent Ent)
-
--- Binding reconstruction
-
--- >>> :t (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (pure $_proDP Var_2)) (pure $_proDP Var_1))
--- (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (pure $_proDP Var_2)) (pure $_proDP Var_1))
---   :: Applicative f => f (G Ent T)
-
-
--- fromG (fromG ((<*>) (_Λ Var_2 (liftA2 (<*>) ((pure . pure) _eachOfTomAndHarry) ((<*>) (pure (_Λ Var_1)) (liftA2 (<*>) (liftA2 (<*>) ((pure . pure) _likes) (_pro'' Var_2)) (_pro Var_1))))) (pure ((pure _brother) <*> (_pro Var_1)))) $ _g5 ) _g4
+-- Paycheck pronoun
+-- >>> :t ((fromG ((fromG (fromCompose ((tie') (Compose ((pure (_Λ Var_2)) <*> (fromCompose ((tie') ((tie' (pure' _likes) (Compose (_proPaycheck Var_1)))) (Compose (pure (_pro Var_2))))))) (pure' Dick)))) _g5)) _g3)
+-- ((fromG ((fromG (fromCompose ((tie') (Compose ((pure (_Λ Var_2)) <*> (fromCompose ((tie') ((tie' (pure' _likes) (Compose (_proPaycheck Var_1)))) (Compose (pure (_pro Var_2))))))) (pure' Dick)))) _g5)) _g3)
 --   :: T
 
--- >>> :t (pure _brother) <*> (_pro Var_1)
--- (pure _brother) <*> (_pro Var_1) :: G Ent Ent
-
--- Pro
+-- Variable free derivation applicative style. Takes advantage of pre-existing applicative instance for ((->) Ent).
+-- >>> :t (pure _left) <*> (id :: Ent -> Ent)
+-- (pure _left) <*> (id :: Ent -> Ent) :: Ent -> T
