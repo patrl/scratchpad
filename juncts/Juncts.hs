@@ -2,6 +2,8 @@ module Juncts where
 
 import Data.Function
 import Data.Monoid
+import Control.Applicative
+import Control.Monad.Cont
 
 -- the model
 
@@ -10,6 +12,20 @@ type T = Bool
 data Ent = Tom | Dick | Harry deriving (Eq, Show)
 
 -- one place predicates
+
+-- _and :: (Cont T a) -> (Cont T a) -> (Cont T a)
+-- _and m n = \k -> ((m k) && (n k))
+
+_and = (&&)
+
+_and' :: Cont T a -> Cont T a -> Cont T a
+_and' f g = runCont (\q -> ((q (runCont f)) && (q (runCont g))))
+
+returnBool = (return :: a -> Cont T a)
+
+bindBool = ((>>=) :: Cont T a -> (a -> Cont T b) -> Cont T b)
+
+-- >>> pure (&&)
 
 _left :: Ent -> T
 _left Tom = True

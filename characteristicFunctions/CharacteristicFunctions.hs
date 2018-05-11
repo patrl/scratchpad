@@ -2,8 +2,6 @@
 
 module CharacteristicFunctions where
 
-import Model
-
 import Control.Applicative
 
 -- TODO: generalize
