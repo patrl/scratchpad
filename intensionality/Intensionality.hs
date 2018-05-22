@@ -30,3 +30,5 @@ intensionalizeR d = \p → (\q → (\w → (d p (flip q $ w))))
 
 -- >>> toGraph1 $ ( _believe' $ (intensionalizeR each) (_boy' <*> (pure W1)) (_left')) Tom
 -- [(W1,True),(W2,False),(W3,False)]
+
+hug :: Ent -> S -> T

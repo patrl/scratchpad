@@ -1,66 +1,83 @@
--- applicatives and DPL -- there and back again.
+-- DPL with sequences and applicatives!
+
 module Dpl where
 
-import Control.Applicative
+import Control.Monad (replicateM)
+import Control.Applicative (liftA2)
+import Control.Lens
 
-data E = Tom | Dick | Harry | Empty deriving (Show, Eq, Enum, Ord, Bounded)
+ -- helper functions
 
-univ :: [E]
-univ = [(minBound) ..]
+toGraph f = [(g, (f g)) | g <- assignments]
+toList f = [g | (g,True) <- (toGraph f) ]
+
+toGraph2 f = [(x, (uncurry f $ x)) | x <- (liftA2 (,) assignments assignments )]
+
+toList2 f = [x | (x,True) <- (toGraph2 f) ]
+
+data E = A | B | C | X deriving (Eq, Show, Enum)
 
 type T = Bool
 
-data Var = X | Y | Z deriving (Show, Eq, Enum, Ord, Bounded)
+type G = [E]
 
-type G = Var -> E
+leave :: E -> T
+leave A = True
+leave B = True
+leave _ = False
 
-_g1 :: G
-_g1 _ = Tom
+hugs :: E -> E -> T
+hugs C B = True
+hugs A B = True
+hugs C C = True
+hugs _ _ = False
 
-_g2 :: G
-_g2 _ = Dick
+dom :: [E]
+dom = [A .. C]
 
-_g3 :: G
-_g3 _ = Dick
+assignments :: [G]
+assignments = [ xs | xs <- (replicateM (length dom) dom) ]
 
-_g4 :: G
-_g4 X = Tom
-_g4 Y = Dick
-_g4 Z = Harry
+modified xs n = [ xs & element n .~ x  | x <- dom ]
 
-_g5 :: G
-_g5 X = Dick
-_g5 Y = Tom
-_g5 Z = Harry
+pro :: Int -> G -> E
+pro n g = g !! n
 
-_left :: E -> T
-_left Tom = True
-_left _ = False
+ex :: Int -> (G -> T) -> G -> T
+ex n p g  = (filter (\h -> p h) (modified g n)) /= []
 
-_hugs :: E -> E -> T
-_hugs Tom Dick = True
-_hugs Dick Tom = True
-_hugs _ _ = False
+proDyn :: Int -> G -> G -> E
+proDyn n g h = if h == g then h !! n else X
 
-modify :: Var -> E -> G -> G
-modify v x g = \v' -> if v == v' then x else g v'
+exDyn :: Int -> (G -> G -> T) -> G -> G -> T
+exDyn n p g h = (filter (\i -> (p h i)) (modified g n)) /= []
 
-ex_static :: Var -> (G -> T) -> G -> T
-ex_static v p g = elem True [(p (modify v x g)) | x <- univ]
+-- >>> toList2 $ exDyn 0 $ (liftA2 (<*>)) ((pure . pure) leave) (proDyn 0)
+-- [([A,A,A],[A,A,A]),([A,A,A],[B,A,A]),([A,A,B],[A,A,B]),([A,A,B],[B,A,B]),([A,A,C],[A,A,C]),([A,A,C],[B,A,C]),([A,B,A],[A,B,A]),([A,B,A],[B,B,A]),([A,B,B],[A,B,B]),([A,B,B],[B,B,B]),([A,B,C],[A,B,C]),([A,B,C],[B,B,C]),([A,C,A],[A,C,A]),([A,C,A],[B,C,A]),([A,C,B],[A,C,B]),([A,C,B],[B,C,B]),([A,C,C],[A,C,C]),([A,C,C],[B,C,C]),([B,A,A],[A,A,A]),([B,A,A],[B,A,A]),([B,A,B],[A,A,B]),([B,A,B],[B,A,B]),([B,A,C],[A,A,C]),([B,A,C],[B,A,C]),([B,B,A],[A,B,A]),([B,B,A],[B,B,A]),([B,B,B],[A,B,B]),([B,B,B],[B,B,B]),([B,B,C],[A,B,C]),([B,B,C],[B,B,C]),([B,C,A],[A,C,A]),([B,C,A],[B,C,A]),([B,C,B],[A,C,B]),([B,C,B],[B,C,B]),([B,C,C],[A,C,C]),([B,C,C],[B,C,C]),([C,A,A],[A,A,A]),([C,A,A],[B,A,A]),([C,A,B],[A,A,B]),([C,A,B],[B,A,B]),([C,A,C],[A,A,C]),([C,A,C],[B,A,C]),([C,B,A],[A,B,A]),([C,B,A],[B,B,A]),([C,B,B],[A,B,B]),([C,B,B],[B,B,B]),([C,B,C],[A,B,C]),([C,B,C],[B,B,C]),([C,C,A],[A,C,A]),([C,C,A],[B,C,A]),([C,C,B],[A,C,B]),([C,C,B],[B,C,B]),([C,C,C],[A,C,C]),([C,C,C],[B,C,C])]
 
-ex_dyn :: Var -> (G -> G -> T) -> G -> G -> T
-ex_dyn v p = \g -> (\h -> (elem True [(p g (modify v x h)) | x <- univ]))
+-- list of assignments
 
-_pro :: Var -> G -> E
-_pro v g = g v
+-- >>> assignments
+-- [[A,A,A],[A,A,B],[A,A,C],[A,B,A],[A,B,B],[A,B,C],[A,C,A],[A,C,B],[A,C,C],[B,A,A],[B,A,B],[B,A,C],[B,B,A],[B,B,B],[B,B,C],[B,C,A],[B,C,B],[B,C,C],[C,A,A],[C,A,B],[C,A,C],[C,B,A],[C,B,B],[C,B,C],[C,C,A],[C,C,B],[C,C,C]]
 
-_proDyn :: Var -> G -> G -> E
-_proDyn v g h = if ((g v) == (h v)) then h v else Empty
--- Need to write a Monoidal instance for the test probably.
+-- free variable example
 
--- >>> (ex_static X ((pure _left) <*> (_pro X))) _g1
--- True
+-- >>> toList ((pure leave) <*> (pro 0))
+-- [[A,A,A],[A,A,B],[A,A,C],[A,B,A],[A,B,B],[A,B,C],[A,C,A],[A,C,B],[A,C,C]]
 
--- >>> :t (ex_dyn X (liftA2 (<*>) ((pure . pure) _left) (_proDyn X)))
--- (ex_dyn X (liftA2 (<*>) ((pure . pure) _left) (_proDyn X)))
---   :: G -> G -> T
+-- >>> toList ((pure leave) <*> (pro 1))
+-- [[A,A,A],[A,A,B],[A,A,C],[B,A,A],[B,A,B],[B,A,C],[C,A,A],[C,A,B],[C,A,C]]
+
+-- constant example
+
+-- >>> toList ((pure leave) <*> (pure A))
+-- [[A,A,A],[A,A,B],[A,A,C],[A,B,A],[A,B,B],[A,B,C],[A,C,A],[A,C,B],[A,C,C],[B,A,A],[B,A,B],[B,A,C],[B,B,A],[B,B,B],[B,B,C],[B,C,A],[B,C,B],[B,C,C],[C,A,A],[C,A,B],[C,A,C],[C,B,A],[C,B,B],[C,B,C],[C,C,A],[C,C,B],[C,C,C]]
+
+
+-- existential quantification
+
+-- >>> toList (((pure hugs) <*> (pro 0)) <*> (pro 0))
+-- [[C,A,A],[C,A,B],[C,A,C],[C,B,A],[C,B,B],[C,B,C],[C,C,A],[C,C,B],[C,C,C]]
+
+-- >>> toList (ex 0 (((pure hugs) <*> (pro 0)) <*> (pro 0)))
+-- [[A,A,A],[A,A,B],[A,A,C],[A,B,A],[A,B,B],[A,B,C],[A,C,A],[A,C,B],[A,C,C],[B,A,A],[B,A,B],[B,A,C],[B,B,A],[B,B,B],[B,B,C],[B,C,A],[B,C,B],[B,C,C],[C,A,A],[C,A,B],[C,A,C],[C,B,A],[C,B,B],[C,B,C],[C,C,A],[C,C,B],[C,C,C]]
