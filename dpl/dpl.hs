@@ -2,7 +2,7 @@
 
 module Dpl where
 
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, zipWithM_)
 import Control.Applicative (liftA2)
 import Control.Lens
 
@@ -14,6 +14,11 @@ toList f = [g | (g,True) <- (toGraph f) ]
 toGraph2 f = [(x, (uncurry f $ x)) | x <- (liftA2 (,) assignments assignments )]
 
 toList2 f = [x | (x,True) <- (toGraph2 f) ]
+
+prettyPrintAssignment xs = putStrLn $ ((unwords . (map show)) xs)
+
+prettyPrintStaticContext xs = mapM_ prettyPrintAssignment (toList xs)
+
 
 data E = A | B | C | X deriving (Eq, Show, Enum)
 
@@ -62,22 +67,145 @@ exDyn n p g h = (filter (\i -> (p h i)) (modified g n)) /= []
 
 -- free variable example
 
--- >>> toList ((pure leave) <*> (pro 0))
--- [[A,A,A],[A,A,B],[A,A,C],[A,B,A],[A,B,B],[A,B,C],[A,C,A],[A,C,B],[A,C,C]]
+-- >>> prettyPrintStaticContext ((pure leave) <*> (pro 0))
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- A C A
+-- A C B
+-- A C C
+-- B A A
+-- B A B
+-- B A C
+-- B B A
+-- B B B
+-- B B C
+-- B C A
+-- B C B
+-- B C C
 
--- >>> toList ((pure leave) <*> (pro 1))
--- [[A,A,A],[A,A,B],[A,A,C],[B,A,A],[B,A,B],[B,A,C],[C,A,A],[C,A,B],[C,A,C]]
+-- >>> prettyPrintStaticContext ((pure leave) <*> (pro 1))
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- B A A
+-- B A B
+-- B A C
+-- B B A
+-- B B B
+-- B B C
+-- C A A
+-- C A B
+-- C A C
+-- C B A
+-- C B B
+-- C B C
 
 -- constant example
 
--- >>> toList ((pure leave) <*> (pure A))
--- [[A,A,A],[A,A,B],[A,A,C],[A,B,A],[A,B,B],[A,B,C],[A,C,A],[A,C,B],[A,C,C],[B,A,A],[B,A,B],[B,A,C],[B,B,A],[B,B,B],[B,B,C],[B,C,A],[B,C,B],[B,C,C],[C,A,A],[C,A,B],[C,A,C],[C,B,A],[C,B,B],[C,B,C],[C,C,A],[C,C,B],[C,C,C]]
+-- >>> prettyPrintStaticContext ((pure leave) <*> (pure A))
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- A C A
+-- A C B
+-- A C C
+-- B A A
+-- B A B
+-- B A C
+-- B B A
+-- B B B
+-- B B C
+-- B C A
+-- B C B
+-- B C C
+-- C A A
+-- C A B
+-- C A C
+-- C B A
+-- C B B
+-- C B C
+-- C C A
+-- C C B
+-- C C C
 
 
 -- existential quantification
 
--- >>> toList (((pure hugs) <*> (pro 0)) <*> (pro 0))
--- [[C,A,A],[C,A,B],[C,A,C],[C,B,A],[C,B,B],[C,B,C],[C,C,A],[C,C,B],[C,C,C]]
+-- >>> prettyPrintStaticContext (((pure hugs) <*> (pro 0)) <*> (pro 0))
+-- C A A
+-- C A B
+-- C A C
+-- C B A
+-- C B B
+-- C B C
+-- C C A
+-- C C B
+-- C C C
 
--- >>> toList (ex 0 (((pure hugs) <*> (pro 0)) <*> (pro 0)))
--- [[A,A,A],[A,A,B],[A,A,C],[A,B,A],[A,B,B],[A,B,C],[A,C,A],[A,C,B],[A,C,C],[B,A,A],[B,A,B],[B,A,C],[B,B,A],[B,B,B],[B,B,C],[B,C,A],[B,C,B],[B,C,C],[C,A,A],[C,A,B],[C,A,C],[C,B,A],[C,B,B],[C,B,C],[C,C,A],[C,C,B],[C,C,C]]
+-- >>> prettyPrintStaticContext $ (ex 0 (((pure hugs) <*> (pro 0)) <*> (pro 0)))
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- A C A
+-- A C B
+-- A C C
+-- B A A
+-- B A B
+-- B A C
+-- B B A
+-- B B B
+-- B B C
+-- B C A
+-- B C B
+-- B C C
+-- C A A
+-- C A B
+-- C A C
+-- C B A
+-- C B B
+-- C B C
+-- C C A
+-- C C B
+-- C C C
+
+-- >>> mapM_ f assignments
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- A C A
+-- A C B
+-- A C C
+-- B A A
+-- B A B
+-- B A C
+-- B B A
+-- B B B
+-- B B C
+-- B C A
+-- B C B
+-- B C C
+-- C A A
+-- C A B
+-- C A C
+-- C B A
+-- C B B
+-- C B C
+-- C C A
+-- C C B
+-- C C C
