@@ -279,3 +279,42 @@ prettyPrintDynContext xs = mapM_ prettyPrintCC (toList2 xs)
 -- Bill Bill Mary -> John Bill Mary
 -- Bill Bill Bill -> John Bill Bill
 
+-- A type constructor for tests.
+
+newtype CCAlt a = CCAlt (C -> C -> Maybe a)
+
+instance Functor CCAlt where
+  fmap f (CCAlt x) = CCAlt (\i -> (\o -> (fmap f (x i o))))
+
+instance Applicative CCAlt where
+  pure a = CCAlt (\i -> (\o -> (if o == i then Just a else Nothing)))
+  (CCAlt f) <*> (CCAlt x) = CCAlt (\i -> (\o -> (if i == o then (f i o) <*> (x i o) else Nothing)))
+
+
+proDynAlt :: Int -> CCAlt E
+proDynAlt n = CCAlt ((\i -> (\o -> if o == i then Just (o !! n) else Nothing)))
+
+-- these two entries bring out the similarities
+
+-- The output context of saturates the output context of the pronoun, and Maybe wraps the entity value
+
+proStat' :: Int -> C -> E
+proStat' n o = o !! n
+
+proStat1 :: C -> E
+proStat1 = proStat' 1
+
+pureContext = (pure :: a -> (C -> a))
+
+applContext = ((<*>) :: (C -> a -> b) -> (C -> a) -> (C -> b))
+
+proStat1ToDyn :: (C -> E) -> C -> C -> Maybe E
+proStat1ToDyn pro i o = if i == o then Just (pro o) else Nothing
+
+testPure :: (C -> a) -> C -> C -> Maybe a
+testPure x i o = if i == o then Just (x o) else Nothing
+
+testAppl :: (C -> (a -> b)) -> (C -> a) -> C -> C -> Maybe b
+testAppl f x i o = if i == o then Just ((f o) (x o)) else Nothing
+
+-- need to work a bit more on generalizing this
