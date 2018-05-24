@@ -6,6 +6,7 @@ import Control.Monad (replicateM, zipWithM_)
 import Control.Applicative (liftA2)
 import Control.Lens (set, element)
 import Data.Functor.Compose
+import Data.Coerce
 
 -- model theory
 
@@ -43,7 +44,6 @@ type C = [E]
 -- G is a type-constructor to static context-sensitive meanings.
 newtype G a =  G (C -> a)
 
--- The functor instance for G is just the functor instance for ((->) C) wrapped in G.
 instance Functor G where
   fmap f (G a) = (G $ fmap f a)
 
@@ -54,7 +54,7 @@ instance Applicative G where
 
 -- A helper function to get rid of the newtype wrapper.
 fromG :: G a -> (C -> a)
-fromG (G x) = x
+fromG = coerce
 
 -- This is a helper function that takes a context g, and returns the set of all assignment functions g' which differ at most from g in the nth element.
 modified g n = [ set (element n) x g  | x <- dom ]
@@ -82,7 +82,7 @@ type CC a = Compose G G a
 
 -- helper function to deal with all the annoying newtype wrappers introduced by composition of applicatives.
 satCC :: CC T -> C -> C -> T
-satCC p i o = (($ o) . fromG . ($ i) . fromG . getCompose) p
+satCC p i o = (($ o) . fromG . ($ i) . fromG . coerce) p
 
 -- Dynamic pronouns are tests:
 -- functions from an index n, to a function from an input/output (i,o) to the nth individual in o if i and o are the same, else the impossible individual.
