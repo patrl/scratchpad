@@ -1,7 +1,4 @@
--- TODO: replicate Chierchia's system using the following type constructors:
-
--- Chierchia's dynamic semantics via the Reader and Continuation monads + monad transformers
-
+-- from reader-based context-sensitivity to Chierchia's dynamic semantics via Monad Transformers
 {-# LANGUAGE LambdaCase #-}
 
 module Chierchia where
