@@ -15,8 +15,6 @@ import Control.Monad.Identity
 -- Basic extensional system
 --
 
-type G' = Reader (C E)
-
 data E = A | B | C deriving (Eq, Show, Enum)
 
 dom :: [E]
