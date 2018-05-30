@@ -128,6 +128,7 @@ lowerCCP g p = lowerG g
                . runReaderT
                . runCCP
 
+-- TODO: check the validity of these instances
 instance Functor CCP where
 
   fmap f x = CCP $ ReaderT $ \p ->
@@ -212,3 +213,62 @@ showApGContext context = mapM_ prettyPrintAssignment
                  . runReaderT
                  . runCCP
 
+--
+
+-- he is a boy
+-- >>> showApGContext assignmentsF $ liftG $ (return boy) `ap` (pro 0)
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- A C A
+-- A C B
+-- A C C
+
+-- Basic donkey
+
+-- Someone left and he is a boy.
+
+-- >>> showApGContext assignmentsF $ (exCCP 0 $ liftG $ (return leave) `ap` (pro 0)) `andCCP` (liftG $ (return boy) `ap` (pro 0))
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- A C A
+-- A C B
+-- A C C
+-- B A A
+-- B A B
+-- B A C
+-- B B A
+-- B B B
+-- B B C
+-- B C A
+-- B C B
+-- B C C
+-- C A A
+-- C A B
+-- C A C
+-- C B A
+-- C B B
+-- C B C
+-- C C A
+-- C C B
+-- C C C
+
+-- he is a boy and someone left
+
+-- >>> showApGContext assignmentsF $ (liftG $ (return boy) `ap` (pro 0)) `andCCP` (exCCP 0 $ liftG $ (return leave) `ap` (pro 0))
+-- A A A
+-- A A B
+-- A A C
+-- A B A
+-- A B B
+-- A B C
+-- A C A
+-- A C B
+-- A C C
