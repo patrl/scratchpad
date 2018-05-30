@@ -118,7 +118,7 @@ exCont n (ReaderT p) =
 -- Chierchia's dynamic semantics using these ingredients.
 --
 
--- This is Chierchia's type for a Context Change Potential - It takes a set of contexts, and returns a set of contexts.
+-- This is Chierchia's type for a Context Change Potential - it's a function from a set of assignments to an assignment-sensitive boolean value. The CCP for a proposition therefore is a function from a set of assignments to a set of assignments.
 newtype CCP a = CCP { runCCP :: ReaderT ((G BoolT T)) (G BoolT) a }
 
 -- Lowers CCPs to continuations.
@@ -131,6 +131,7 @@ lowerCCP g p = lowerG g
 -- TODO: check the validity of these instances
 instance Functor CCP where
 
+  -- The Functor instance for CCPs applies f to the continuation, and ensures that the result will be (at the end of the day) compatible with the set of contexts denoted by the external argument p, which represents the rest of the discourse. The remaining instances follow this general pattern.
   fmap f x = CCP $ ReaderT $ \p ->
     ReaderT $ \g ->
     (fmap f (lowerCCP g p $ x)) `andHelper` (lowerG g $ p)
