@@ -1,4 +1,9 @@
 -- from reader-based context-sensitivity to Chierchia's dynamic semantics via Monad Transformers
+-- some semi-interesting results:
+-- assignment sensitive meanings can be lifted to CCPs via a straightforward lifter function.
+-- pronouns keep their standard assignment-sensitive semantics
+-- only existential quantification, conjunction, and derivatives end up inherently dynamic.
+
 {-# LANGUAGE LambdaCase #-}
 
 module Chierchia where
@@ -53,14 +58,14 @@ negCT cp = ContT $ \k ->
   Identity $ runCont cp $ \p ->
   not (runIdentity $ k p)
 
--- conjoins a program that terminates in a boolean type with a trivially continuationized truth proposition. This will come in handy later.
+-- conjoins a program that terminates in a boolean type with a continuationized proposition value. This will come in handy later.
 andHelper :: BoolT a -> BoolT T -> BoolT a
 cf `andHelper` ct = ContT $ \k ->
   Identity $ runCont cf $ \f ->
   runCont ct $ \t ->
   (runIdentity $ k f) && t
 
--- lowers a trivially continuationized proposition
+-- lowers a continuationized proposition
 lower :: Cont T T -> T
 lower cp = runCont cp id
 
@@ -82,24 +87,26 @@ type Var = Int
 -- Contexts (i.e. assignment functions) are treated as sequences and parameterised to a type.
 type C a = [a]
 
--- Type constructor for assignment sensitive meanings, using the ReaderT constructor from mtl. G is a reader monad parameterised to assignments.
+-- Type constructor for assignment sensitive meanings, using ReaderT. G is a reader monad parameterised to assignments.
 type G = ReaderT (C E)
 
 
 
--- Lexical entry for pronouns.
+-- Lexical entry for pronouns -- they take an index n and return the nth member of the assignment.
 pro :: Var -> G Identity E
 pro n = ReaderT (\as -> Identity (as !! n))
 
+-- a function for lowering assignment sensitive meanings to ordinary montagovian meanings
 lowerG :: C E -> G m a -> m a
 lowerG g = ($ g) . runReaderT
 
+-- helper functions for modified assignments
 modify :: C E -> Var -> E -> C E
 modify g n x = set (element n) x g
 
 modified g n = [ modify g n x  | x <- dom ]
 
--- Standard existential quantification
+-- Totally standard entry for existential quantification
 ex :: Var -> G Identity T -> G Identity T
 ex n (ReaderT p)
   = ReaderT (\g ->
@@ -118,7 +125,7 @@ exCont n (ReaderT p) =
 -- Chierchia's dynamic semantics using these ingredients.
 --
 
--- This is Chierchia's type for a Context Change Potential - it's a function from a set of assignments to an assignment-sensitive boolean value. The CCP for a proposition therefore is a function from a set of assignments to a set of assignments.
+-- This is Chierchia's type for a Context Change Potential - it's a function from a set of assignments to an assignment-sensitive boolean value. The CCP for a proposition therefore is a function from a set of assignments to a set of assignments. The CCP for a predicate is a function from a set of assignments to an assignment-sensitive predicate.
 newtype CCP a = CCP { runCCP :: ReaderT ((G BoolT T)) (G BoolT) a }
 
 -- Lowers CCPs to continuations.
@@ -165,12 +172,12 @@ liftG (ReaderT x) = CCP $ ReaderT $ \(ReaderT p) ->
   `andHelper` (p g)
 
 
--- Chierchia's dynamic existential quantification is also treated as a kind of function composition
+-- Chierchia's dynamic existential quantification is treated as a kind of function composition
 exCCP :: Var -> CCP T -> CCP T
 exCCP n (CCP (ReaderT scope))
   = CCP $ ReaderT $ \p -> exCont n . scope $ p
 
--- Chierchia's dynamic conjunction is a treated as a kind of function composition.
+-- Chierchia's dynamic conjunction is also treated as a kind of function composition.
 andCCP :: CCP T -> CCP T -> CCP T
 (CCP (ReaderT c1)) `andCCP` (CCP (ReaderT c2))
   = CCP $ ReaderT $ \p -> c1 . c2 $ p
@@ -183,9 +190,11 @@ negCCP prej = CCP $ ReaderT $ \p ->
 
 -- Helper functions
 
+-- a function from a finite set to the characteristic function of this set.
 toCharFunc :: Eq a => [a] -> a -> T
 toCharFunc xs x = elem x xs
 
+-- A function from a quantifier q with a finite domain to a set of sets.
 toSetOfSets :: Eq a => [a] -> ((a -> T) -> T) -> [[a]]
 toSetOfSets qDom q = [ xs | xs <- (powerset qDom), q (toCharFunc xs) ]
 
@@ -193,18 +202,22 @@ powerset :: [a] -> [[a]]
 powerset [] = [[]]
 powerset (x:xs) = powerset xs ++ map (x:) (powerset xs)
 
+-- a function from a predicate and a finite domain, to the graph of the predicate
 toGraph :: [a] -> (a -> T) -> [(a,T)]
 toGraph dom f = [(x, (f x)) | x <- dom]
 
+-- a function from a predicate and a finite domain, to the set the predicate characterises relative to the domain.
 toSet :: [a] -> (a -> T) -> [a]
 toSet dom f = [x | (x,True) <-
                    toGraph dom f]
 
+-- pretty prints an assignment
 prettyPrintAssignment :: C E -> IO ()
 prettyPrintAssignment = putStrLn
                         . unwords
                         . map show
 
+-- pretty prints the result of applying a CCP to a context - feed in assignmentsF as the first argument to get the result of applying the CCP to a complete ignorance context.
 showApGContext :: G BoolT T -> CCP T -> IO ()
 showApGContext context = mapM_ prettyPrintAssignment
                  . toSet assignments
