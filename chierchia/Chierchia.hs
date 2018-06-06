@@ -90,8 +90,6 @@ type C a = [a]
 -- Type constructor for assignment sensitive meanings, using ReaderT. G is a reader monad parameterised to assignments.
 type G = ReaderT (C E)
 
-
-
 -- Lexical entry for pronouns -- they take an index n and return the nth member of the assignment.
 pro :: Var -> G Identity E
 pro n = ReaderT (\as -> Identity (as !! n))

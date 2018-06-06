@@ -1,4 +1,4 @@
--- looks like we need the State monad and the Maybe monad to reconstruct Schlenker's notion of local contexts.
+-- looks like we need the State monad and the Cont T monad to reconstruct Schlenker's notion of local contexts. It's gonna look EXTREMELY similar to Chierchia's dynamic semantics.
 -- TODO: check out Woojin's paper: https://drive.google.com/file/d/0B4lu5n7x39bbOGpMeG5aMjBvc0E
 
 module LocalContexts where
@@ -38,22 +38,6 @@ cf |= cg = ContT $ \k ->
   Identity $ cf >>- \f ->
                       cg >>- \g ->
                                (runIdentity $ k f) ==> (runIdentity $ k g)
-
-newtype Schlenker a = Schlenker { runSchlenker :: (S -> T) -> (a,(S -> T))}
-
-instance Functor Schlenker where
-  fmap = undefined
-
-instance Applicative Schlenker where
-  pure = undefined
-  (<*>) = undefined
-
--- instance Monad Schlenker where
---   return x = Schlenker $ \i -> (x,
---                                (return x) `andM` i)
---   (Schlenker h) >>= f = Schlenker $ \i -> let (a, newState) = h i
---                                               (Schlenker g) = f a
---                                           in g newState
 
 type T = Bool
 
