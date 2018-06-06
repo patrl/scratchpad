@@ -4,12 +4,12 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, base, mtl, stdenv }:
+  f = { mkDerivation, base, effect-monad, mtl, stdenv }:
       mkDerivation {
         pname = "charlowDiss";
         version = "0.1.0.0";
         src = ./.;
-        libraryHaskellDepends = [ base mtl ];
+        libraryHaskellDepends = [ base effect-monad mtl ];
         license = stdenv.lib.licenses.bsd3;
       };
 
