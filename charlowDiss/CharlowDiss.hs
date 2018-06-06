@@ -60,6 +60,7 @@ notDy :: StateSet T -> StateSet T
 notDy (StateT s) = StateT $ \i ->
                             [((null [x | x <- s i, fst x]),i)]
 
+
 -- monadic conjunction
 andM :: Monad m => m T -> m T -> m T
 andM = liftM2 (&&)
@@ -79,10 +80,21 @@ extLift :: ContT r m a -> ContT l (ContT r m) a
 extLift = liftM'
 
 -- internal lift -- add an intermediate continuation to a continuation
+intLift :: (Monad m) => ContT r1 m a -> ContT r1 m (ContT r2 m a)
 intLift m = ContT $ \c ->
   m >>- \v ->
   c (ContT $ \k ->
         k v)
+
+-- >>> (return hugs) `ap` (intLift evDyCont)
+-- <interactive>:363:22: error:
+--     • Couldn't match type ‘ContT r20 StateSet E’ with ‘E’
+--       Expected type: ContT T StateSet E
+--         Actual type: ContT T StateSet (ContT r20 StateSet E)
+--     • In the second argument of ‘ap’, namely ‘(intLift evDyCont)’
+--       In the expression: (return hugs) `ap` (intLift evDyCont)
+--       In an equation for ‘it’: it = (return hugs) `ap` (intLift evDyCont)
+
 
 lowerM' :: Monad m => ContT a m (ContT a m a) -> m a
 lowerM' = lowerM . join
@@ -142,19 +154,19 @@ resetM = liftM' . lowerM
 -- x -\\- f = f `ap` x
 
 -- >>> (liftM' notDy) -/- (resetM $ ((bind . liftM' $ ex) -\- ((return hugs) -/- evDyCont)))
--- <interactive>:150:19: error:
+-- <interactive>:153:10: error:
 --     • Couldn't match type ‘StateSet T -> StateSet T’
---                      with ‘StateT [E] [] (T -> a)’
---       Expected type: StateSet (T -> a)
+--                      with ‘StateT [E] [] (T -> b)’
+--       Expected type: StateSet (T -> b)
 --         Actual type: StateSet T -> StateSet T
 --     • Probable cause: ‘notDy’ is applied to too few arguments
 --       In the first argument of ‘liftM'’, namely ‘notDy’
 --       In the first argument of ‘(-/-)’, namely ‘(liftM' notDy)’
---       In the second argument of ‘($)’, namely
---         ‘(liftM' notDy)
---            -/-
---              (resetM $ ((bind . liftM' $ ex) -\- ((return hugs) -/- evDyCont)))’
+--       In the expression:
+--         (liftM' notDy)
+--           -/-
+--             (resetM $ ((bind . liftM' $ ex) -\- ((return hugs) -/- evDyCont)))
 --     • Relevant bindings include
---         it :: StateSet a (bound at <interactive>:150:2)
+--         it :: ContT r StateSet b (bound at <interactive>:153:2)
 
 -- >>> return notDy
