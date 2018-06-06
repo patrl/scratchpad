@@ -7,6 +7,7 @@ module Charlow2018 where
 import Model
 import Data.Functor.Compose
 import Control.Applicative
+import Data.Coerce
 
 -- Contexts
 
@@ -92,7 +93,7 @@ fromG (G f) = f
 
 -- helper function for the Compose newtype wrapper
 fromCompose ∷ Compose f g a → f (g a)
-fromCompose (Compose a) = a
+fromCompose = coerce
 
 -- Subject raising (p. 3, Fig. 2)
 -- >>> ((fromG (((_Λ Var_1) $ (ρ _left) ⍟ (_pro Var_1)) ⍟ (ρ Tom))) _g3)

@@ -92,5 +92,3 @@ toSet2 domInt domExt f = [x | (x,True) <- (toGraph2 domInt domExt f) ]
 
 -- >>> toSet2 [True,False] [True,False] (==>)
 -- [(True,True),(False,True),(False,False)]
-
-

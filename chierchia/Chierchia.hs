@@ -69,7 +69,6 @@ cf `andHelper` ct = ContT $ \k ->
 lower :: Cont T T -> T
 lower cp = runCont cp id
 
-
 --
 -- Monadic context-sensitive system
 --
