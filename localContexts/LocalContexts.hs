@@ -142,9 +142,9 @@ instance Monad LC where
 leavePresupp :: LC (E -> S -> T)
 leavePresupp = LC $ \p ->
                       ContT $ \k ->
-                                k (\x -> (leave x))
+                                k (\x ->
+                                     (leave x))
 
-  
                       -- ifF (p `entailsHelper` (return $ boy)) (return leave) (return (\x -> (\w -> False)))
 
 -- >>> 1 + 1

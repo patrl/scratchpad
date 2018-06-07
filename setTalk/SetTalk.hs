@@ -3,6 +3,7 @@
 module SetTalk where
 
 import Control.Applicative (liftA2)
+-- import Control.Monad.Logic
 
 type T = Bool
 
@@ -58,6 +59,8 @@ everyInt f = all f [1 .. 3]
 -- a function from a predicate and a domain, to the graph of the predicate
 toGraph :: [a] -> (a -> T) -> [(a,T)]
 toGraph dom f = [(x, (f x)) | x <- dom]
+
+-- toGraphL :: (a -> T) -> Logic (a,T)
 
 -- >>> take 5 $ toGraph [0 ..] even
 -- [(0,True),(1,False),(2,True),(3,False),(4,True)]
