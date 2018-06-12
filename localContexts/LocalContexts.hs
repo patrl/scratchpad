@@ -7,39 +7,10 @@ import Control.Monad.Cont
 import Control.Monad.Identity
 import Control.Monad.Reader
 
--- replacing syntactic sugar with a function
-if' :: Bool -> a -> a -> a
-if' True  x _ = x
-if' False _ y = y
-
--- monadic if-then-else
-ifF :: Monad m => m Bool -> m a -> m a -> m a
-ifF = liftM3 if'
-
 (>>-) = runCont
 
 toCharFunc :: Eq a => [a] -> a -> T
 toCharFunc xs x = elem x xs
-
--- generalized conjunction
-andM :: Cont T a -> Cont T a -> Cont T a
-andM cf cg = ContT $ \k ->
-  Identity $ cf >>- \f ->
-                      cg >>- \g ->
-                               (runIdentity $ k f) && (runIdentity $ k g)
-
--- intensional generalized conjunction
-andS :: Cont (S -> T) a -> Cont (S -> T) a -> Cont (S -> T) a
-andS cf cg = ContT $ \k ->
-  Identity $ cf >>- \f ->
-                      cg >>- \g ->
-                               (liftM2 (&&)) (runIdentity $ k f) (runIdentity $ k g)
-
--- conjoin the terminating value of a predicate with the local context.
-andHelper :: Cont (S -> T) a -> (S -> T) -> Cont (S -> T) a
-andHelper cf p = ContT $ \k ->
-  Identity $ cf >>- \f ->
-                      (liftM2 (&&)) (runIdentity $ k f) p
 
 entailsHelper :: Cont (S -> T) (S -> T) -> Cont (S -> T) a -> Cont (S -> T) a
 entailsHelper cp cf = ContT $ \k ->
@@ -125,35 +96,22 @@ instance Monad LC where
     ((x p) >>= (\y ->
                  ($ p) . runLC $ f y)) `andHelper'` p
 
--- >>> toSet [0..10] . lower . ($ (return $ toCharFunc [0..10])) . runLC $ (return :: a -> LC a) ((liftM2 (&&)) ((return A) >>= leave) ((return A) >>= boy))
--- [0,2,3,4]
+-- >>> toSet [1..10] (lower . ($ (return $ toCharFunc [0..10])) . runLC $ (return :: a -> LC a) ((liftM2 (&&)) ((return A) >>= leave) ((return A) >>= boy)))
 
 -- update
 (+++) :: LC (S -> T) -> LC (S -> T) -> LC (S -> T)
 (LC p) +++ (LC q) = LC $ \r ->
                           p . q $ r
 
--- >>> toSet [0..] . lower . ($ universe) . runLC $ (return ((return A) >>= leave)) +++ (return ((return A) >>= boy))
--- [0,2,3,4]
-
-
-
-  -- let's try something presuppositional. leave presupposes now that A is a boy.
 leavePresupp :: LC (E -> S -> T)
-leavePresupp = LC $ \p ->
-                      ContT $ \k ->
-                                k (\x ->
-                                     (leave x))
+leavePresupp = LC $ \r ->
+  ContT $ \k ->
+            k (\x ->
+                 \s -> if null [w | w <- [0..10], (((lower r) w) && not (boy x w))] then leave x s else False)
 
-                      -- ifF (p `entailsHelper` (return $ boy)) (return leave) (return (\x -> (\w -> False)))
+-- >>> toSet [1..10] (lower . ($ (return $ toCharFunc [2,3,4,5])) . runLC $ (leavePresupp `ap` (return A)))
+-- []
 
--- >>> 1 + 1
--- 2
-
--- >>> toSet [0..10] . lower . ($ universe) . runLC $ leavePresupp `ap` (return A)
--- >>> presupposition narrows down the context in exactly the way we predict.
--- [0,2,3,4]
- 
 -- lowers a continuationized proposition
 lower :: Cont a a -> a
 lower cp = runCont cp id
@@ -165,7 +123,3 @@ toSet dom f = [x | (x,True) <-
 -- a function from a predicate and a domain, to the graph of the predicate
 toGraph :: [a] -> (a -> T) -> [(a,T)]
 toGraph dom f = [(x, (f x)) | x <- dom]
-
-
-
-
