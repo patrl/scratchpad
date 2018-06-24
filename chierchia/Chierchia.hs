@@ -4,8 +4,6 @@
 -- pronouns keep their standard assignment-sensitive semantics
 -- only existential quantification, conjunction, and derivatives end up inherently dynamic.
 
-{-# LANGUAGE LambdaCase #-}
-
 module Chierchia where
 
 import Data.Coerce
@@ -103,6 +101,16 @@ modify g n x = set (element n) x g
 
 modified g n = [ modify g n x  | x <- dom ]
 
+-- categorematic abstraction
+abs  :: Var -> (G Identity a) -> (G Identity (E -> a))
+abs n (ReaderT f) = ReaderT (\g ->
+                               Identity (\x -> runIdentity (f (modify g n x))))
+
+-- continuation friendly abstraction
+absCont :: Var -> G BoolT a -> G BoolT (E -> a)
+absCont n (ReaderT f) = ReaderT $ \g -> undefined
+
+
 -- Totally standard entry for existential quantification
 ex :: Var -> G Identity T -> G Identity T
 ex n (ReaderT p)
@@ -111,81 +119,104 @@ ex n (ReaderT p)
                          (\h -> runIdentity $ p h)
                          (modified g n)))
 
+-- exCont' :: Var -> G BoolT a -> G BoolT a
+-- exCont' n (ReaderT p) = ReaderT $ \g ->
+--   ContT $ \k ->
+--             ($ g) . runReaderT (ex n (ReaderT $ \g' ->
+--                                          runContT (p g') $ \q ->
+--                                                              (k q) == (Identity True)))
+
 -- Continuationized existential quantification (will come in handy later)
-exCont :: Var -> G BoolT T -> G BoolT T
+exCont :: Var -> G BoolT a -> G BoolT a
 exCont n (ReaderT p) =
   ReaderT $ \g -> ContT $ \k ->
-  Identity (not . null $ filter (\h -> runCont (p h) $ \q ->
-                                    runIdentity $ k q) (modified g n))
+                            Identity $ (not . null $ filter
+                                       (\h ->
+                                          runIdentity $ runContT (p h) (\q ->
+                                                                          (k q)))
+                                         (modified g n))
 
 --
 -- Chierchia's dynamic semantics using these ingredients.
 --
 
 -- This is Chierchia's type for a Context Change Potential - it's a function from a set of assignments to an assignment-sensitive boolean value. The CCP for a proposition therefore is a function from a set of assignments to a set of assignments. The CCP for a predicate is a function from a set of assignments to an assignment-sensitive predicate.
-newtype CCP a = CCP { runCCP :: ReaderT ((G BoolT T)) (G BoolT) a }
+
+newtype CCP a = CCP { runCCP :: ReaderT (G BoolT a) (G BoolT) a }
 
 -- Lowers CCPs to continuations.
-lowerCCP :: C E -> G BoolT T -> CCP a -> BoolT a
+lowerCCP :: C E -> (G BoolT a) -> CCP a -> BoolT a
 lowerCCP g p = lowerG g
                . ($ p)
                . runReaderT
                . runCCP
 
--- TODO: check the validity of these instances
-instance Functor CCP where
+-- -- TODO: check the validity of these instances
+-- instance Functor CCP where
 
-  -- The Functor instance for CCPs applies f to the continuation, and ensures that the result will be (at the end of the day) compatible with the set of contexts denoted by the external argument p, which represents the rest of the discourse. The remaining instances follow this general pattern.
-  fmap f x = CCP $ ReaderT $ \p ->
-    ReaderT $ \g ->
-    (fmap f (lowerCCP g p $ x)) `andHelper` (lowerG g $ p)
+--   -- The Functor instance for CCPs applies f to the continuation, and ensures that the result will be (at the end of the day) compatible with the set of contexts denoted by the external argument p, which represents the rest of the discourse. The remaining instances follow this general pattern.
+--   fmap f x = CCP $ ReaderT $ \p ->
+--     ReaderT $ \g ->
+--     (fmap f (lowerCCP g p $ x)) `andHelper` (lowerG g $ p)
+
+-- instance Functor CCP where
+--   fmap f x = CCP $ ReaderT $ \p ->
+--     ReaderT $ \g ->
+--     (ContT $ \k ->
+--               Identity $ (runIdentity ((runContT $ (fmap f (lowerCCP g p $ x))) k))) `andCT` (($ g) . runReaderT $ p)
+
+instance Functor CCP where
+  fmap = undefined
 
 instance Applicative CCP where
 
-  pure x = CCP $ ReaderT $ \(ReaderT p) ->
+-- instance Applicative CCP where
+
+  pure x = CCP $ ReaderT $ \p ->
     ReaderT $ \g ->
-    return x `andHelper` p g
-
-  f <*> x = CCP $ ReaderT $ \p ->
-    ReaderT $ \g ->
-    ((lowerCCP g p $ f) <*> (lowerCCP g p $ x))
-    `andHelper` (lowerG g $ p)
-
-instance Monad CCP where
-
-  return = pure
-
-  x >>= f = CCP $ ReaderT $ \p ->
-    ReaderT $ \g ->
-    ((lowerCCP g p $ x) >>=
-    \y ->
-      lowerCCP g p $ f y) `andHelper` (lowerG g $ p)
-
--- function to lift from assignment-sensitive meanings to dynamic meanings.
-liftG :: G Identity a -> CCP a
-liftG (ReaderT x) = CCP $ ReaderT $ \(ReaderT p) ->
-  ReaderT $ \g ->
-  (return . runIdentity $ x g)
-  `andHelper` (p g)
+    (ContT $ \k ->
+    Identity $ (runIdentity $ k x)) `andCT` (($ g) . runReaderT $ p)
 
 
--- Chierchia's dynamic existential quantification is treated as a kind of function composition
-exCCP :: Var -> CCP T -> CCP T
-exCCP n (CCP (ReaderT scope))
-  = CCP $ ReaderT $ \p -> exCont n . scope $ p
+  -- f <*> x = CCP $ ReaderT $ \p ->
+  --   ReaderT $ \g ->
+  --   ((lowerCCP g p $ f) <*> (lowerCCP g p $ x))
 
--- Chierchia's dynamic conjunction is also treated as a kind of function composition.
-andCCP :: CCP T -> CCP T -> CCP T
-(CCP (ReaderT c1)) `andCCP` (CCP (ReaderT c2))
-  = CCP $ ReaderT $ \p -> c1 . c2 $ p
+-- -- instance Monad CCP where
 
--- negCCP
-negCCP :: CCP a -> CCP a
-negCCP prej = CCP $ ReaderT $ \p ->
-  ReaderT $ \g ->
-  negCT (lowerCCP g p $ prej)
+-- --   return = pure
 
--- Helper functions
+-- --   x >>= f = CCP $ ReaderT $ \p ->
+-- --     ReaderT $ \g ->
+-- --     ((lowerCCP g p $ x) >>=
+-- --     \y ->
+-- --       lowerCCP g p $ f y) `andHelper` (lowerG g $ p)
+
+-- -- -- function to lift from assignment-sensitive meanings to dynamic meanings.
+-- -- liftG :: G Identity a -> CCP a
+-- -- liftG (ReaderT x) = CCP $ ReaderT $ \(ReaderT p) ->
+-- --   ReaderT $ \g ->
+-- --   (return . runIdentity $ x g)
+-- --   `andHelper` (p g)
+
+
+-- -- -- Chierchia's dynamic existential quantification is treated as a kind of function composition
+-- -- exCCP :: Var -> CCP T -> CCP T
+-- -- exCCP n (CCP (ReaderT scope))
+-- --   = CCP $ ReaderT $ \p -> exCont n . scope $ p
+
+-- -- Chierchia's dynamic conjunction is also treated as a kind of function composition.
+-- andCCP :: CCP T -> CCP T -> CCP T
+-- (CCP (ReaderT c1)) `andCCP` (CCP (ReaderT c2))
+--   = CCP $ ReaderT $ \p -> c1 . c2 $ p
+
+-- -- negCCP
+-- negCCP :: CCP a -> CCP a
+-- negCCP prej = CCP $ ReaderT $ \p ->
+--   ReaderT $ \g ->
+--   negCT (lowerCCP g p $ prej)
+
+-- -- Helper functions
 
 -- a function from a finite set to the characteristic function of this set.
 toCharFunc :: Eq a => [a] -> a -> T
@@ -215,14 +246,14 @@ prettyPrintAssignment = putStrLn
                         . map show
 
 -- pretty prints the result of applying a CCP to a context - feed in assignmentsF as the first argument to get the result of applying the CCP to a complete ignorance context.
-showApGContext :: G BoolT T -> CCP T -> IO ()
-showApGContext context = mapM_ prettyPrintAssignment
-                 . toSet assignments
-                 . fmap lower
-                 . runReaderT
-                 . ($ context)
-                 . runReaderT
-                 . runCCP
+-- showApGContext :: G BoolT T -> CCP T -> IO ()
+-- showApGContext context = mapM_ prettyPrintAssignment
+--                  . toSet assignments
+--                  . fmap lower
+--                  . runReaderT
+--                  . ($ context)
+--                  . runReaderT
+--                  . runCCP
 
 --
 
