@@ -43,7 +43,7 @@ drefIntro :: StateSet E -> StateSet E
 drefIntro m =
   m >>= \v ->
           StateT $ \i ->
-                  [(v, (v : i))]
+                  [(v, v : i)]
 
 -- existential quantifier over the domain
 ex :: StateSet E
@@ -58,7 +58,7 @@ pro = StateT $ \i ->
 -- dynamic negation
 notDy :: StateSet T -> StateSet T
 notDy (StateT s) = StateT $ \i ->
-                            [((null [x | x <- s i, fst x]),i)]
+                            [(null [x | x <- s i, fst x],i)]
 
 
 -- monadic conjunction
@@ -106,7 +106,7 @@ lowerM' = lowerM . join
 -- [(True,[A]),(False,[B]),(False,[C])]
 
 -- universal quantifier
-evDyCont :: ContT T (StateSet) E
+evDyCont :: ContT T StateSet E
 evDyCont = ContT $ \k ->
                      notDy $ ex >>=
                      \x -> notDy $ k x
@@ -115,7 +115,7 @@ bind :: ContT r StateSet E -> ContT r StateSet E
 bind m = ContT $ \k ->
                    m >>- \x ->
                            StateT $ \i ->
-                                      (runStateT (k x)) (x : i)
+                                      runStateT (k x) (x : i)
 
 -- feed a continuationized monadic program the trivial monadic continuation
 lowerM :: (Monad m) => ContT a m a -> m a
@@ -123,7 +123,6 @@ lowerM = ($ return) . (>>-)
 
 resetM :: (Monad m) => ContT a m a -> ContT r m a
 resetM = liftM' . lowerM
-
 
 -- forward application. Side-effects left-to-right.
 (-/-) :: Monad m => m (a -> b) -> m a -> m b
