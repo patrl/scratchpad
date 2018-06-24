@@ -43,5 +43,5 @@ _brother Harry = Tom
 -- Quantifiers
 
 _eachOfTomAndHarry ∷ (Ent → T) → T
-_eachOfTomAndHarry f = (f Tom == True) && (f Harry == True)
+_eachOfTomAndHarry f = f Tom && f Harry
 

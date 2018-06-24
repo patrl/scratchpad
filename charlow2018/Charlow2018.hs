@@ -41,23 +41,23 @@ type Pro a b = Var → G a b
 _pro ∷ Pro a a
 _pro n = G (\g → g n)
 
-_proPaycheck = (_pro ∷ Pro (G Ent Ent) (G Ent Ent))
+_proPaycheck = _pro ∷ Pro (G Ent Ent) (G Ent Ent)
 
-_proDP n = (_pro ∷ Pro Ent Ent) n
+_proDP = _pro ∷ Pro Ent Ent
 
-_proVP n = (_pro ∷ Pro (Ent → T) (Ent → T)) n
+_proVP = _pro ∷ Pro (Ent → T) (Ent → T)
 
 -- G is the generalized type constructor for assignment sensitive meanings.
-newtype G a b = G ((Assignment a) → b)
+newtype G a b = G (Assignment a → b)
 
 -- The Functor instance for the type constructor G a
 instance Functor (G a) where
-  fmap f (G b) = G (\n -> (f (b n)))
+  fmap f (G b) = G $ f . b
 
 -- The applicative instance for the type constructor G a
 instance Applicative (G a) where
-  pure b = G (\g -> b)
-  (<*>) (G aToB) (G a) = G (\g -> ((aToB g) (a g)))
+  pure b = G $ const b
+  (<*>) (G aToB) (G a) = G (\g -> aToB g (a g))
 
 -- Composition of G (G Ent Ent) and G Ent. Introduces an additional newtype wrapper.
 type G' = Compose (G (G Ent Ent)) (G Ent)
@@ -70,25 +70,25 @@ pure' ∷ b → G' b
 pure' = pure
 
 -- Using (⍟) to ape Charlow's notation for <*>
-(⍟) ∷ (G c (a → b)) → (G c a) → (G c b)
+(⍟) ∷ G c (a → b) → G c a → G c b
 (⍟) = (<*>)
 
-tie' ∷ (G' (a → b)) → (G' a) → (G' b)
+tie' ∷ G' (a → b) → G' a → G' b
 tie' = (<*>)
 
 -- A helper function for taking an assignment function g, and returning a modified assignment function g' relative to a variable i and an individual x.
-modify ∷ (Assignment a) → Var → a → (Assignment a)
+modify ∷ Assignment a → Var → a → Assignment a
 modify g i x = g' where
   g' j
     | j == i = x
     | otherwise = g j
 
 -- Abstraction relative to a variable.
-_Λ  ∷ Var → (G a b) → (G a (a → b))
-_Λ n (G f) = G (\g → (\x → f (modify g n x)))
+_Λ  ∷ Var → G a b → G a (a → b)
+_Λ n (G f) = G (\g x → f (modify g n x))
 
 -- helper functions for the newtype wrapper
-fromG ∷ (G a b) → (Assignment a) → b
+fromG ∷ G a b → Assignment a → b
 fromG (G f) = f
 
 -- helper function for the Compose newtype wrapper
