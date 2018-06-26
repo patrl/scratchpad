@@ -3,6 +3,7 @@
 module SetTalk where
 
 import Control.Applicative (liftA2)
+
 -- import Control.Monad.Logic
 
 type T = Bool
