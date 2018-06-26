@@ -4,12 +4,12 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, base, stdenv }:
+  f = { mkDerivation, base, mtl, stdenv }:
       mkDerivation {
         pname = "charlow2018";
         version = "0.1.0.0";
         src = ./.;
-        libraryHaskellDepends = [ base ];
+        libraryHaskellDepends = [ base mtl ];
         description = "An implementation of Charlow (2018) \"A modular theory of pronouns and binding\"";
         license = stdenv.lib.licenses.bsd3;
       };
