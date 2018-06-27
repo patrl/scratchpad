@@ -49,7 +49,7 @@ andCT :: Cont T a -> Cont T a -> Cont T a
 andCT cf cg = ContT $ \k ->
   Identity $ runCont cf $ \f ->
   runCont cg $ \g ->
-  (runIdentity $ k f) && (runIdentity $ k g)
+  runIdentity (k f) && runIdentity (k g)
 
 negCT :: Cont T a -> Cont T a
 negCT cp = ContT $ \k ->
@@ -61,7 +61,7 @@ andHelper :: BoolT a -> BoolT T -> BoolT a
 cf `andHelper` ct = ContT $ \k ->
   Identity $ runCont cf $ \f ->
   runCont ct $ \t ->
-  (runIdentity $ k f) && t
+  runIdentity (k f) && t
 
 -- lowers a continuationized proposition
 lower :: Cont T T -> T
@@ -72,11 +72,11 @@ lower cp = runCont cp id
 --
 
 -- -- The set of assignments.
-assignments = [ xs | xs <- (replicateM (length dom) dom) ]
+assignments = replicateM (length dom) dom
 
 -- -- The characteristic function of the set of assignments.
 assignmentsF :: G BoolT T
-assignmentsF = ReaderT $ fmap return $ toCharFunc assignments
+assignmentsF = ReaderT $ return <$> toCharFunc assignments
 
 -- Variables are just integers
 type Var = Int
@@ -102,13 +102,13 @@ modify g n x = set (element n) x g
 modified g n = [ modify g n x  | x <- dom ]
 
 -- categorematic abstraction
-abs  :: Var -> (G Identity a) -> (G Identity (E -> a))
+abs  :: Var -> G Identity a -> G Identity (E -> a)
 abs n (ReaderT f) = ReaderT (\g ->
-                               Identity (\x -> runIdentity (f (modify g n x))))
+                               Identity (runIdentity . f . modify g n))
 
 -- continuation friendly abstraction
 absCont :: Var -> G BoolT a -> G BoolT (E -> a)
-absCont n (ReaderT f) = ReaderT $ \g -> undefined
+absCont n (ReaderT f) = ReaderT $ const undefined
 
 
 -- Totally standard entry for existential quantification
@@ -116,7 +116,7 @@ ex :: Var -> G Identity T -> G Identity T
 ex n (ReaderT p)
   = ReaderT (\g ->
                Identity (not . null $ filter
-                         (\h -> runIdentity $ p h)
+                         (runIdentity . p)
                          (modified g n)))
 
 -- exCont' :: Var -> G BoolT a -> G BoolT a
@@ -130,10 +130,9 @@ ex n (ReaderT p)
 exCont :: Var -> G BoolT a -> G BoolT a
 exCont n (ReaderT p) =
   ReaderT $ \g -> ContT $ \k ->
-                            Identity $ (not . null $ filter
+                            Identity (not . null $ filter
                                        (\h ->
-                                          runIdentity $ runContT (p h) (\q ->
-                                                                          (k q)))
+                                          runIdentity $ runContT (p h) k)
                                          (modified g n))
 
 --
@@ -145,7 +144,7 @@ exCont n (ReaderT p) =
 newtype CCP a = CCP { runCCP :: ReaderT (G BoolT a) (G BoolT) a }
 
 -- Lowers CCPs to continuations.
-lowerCCP :: C E -> (G BoolT a) -> CCP a -> BoolT a
+lowerCCP :: C E -> G BoolT a -> CCP a -> BoolT a
 lowerCCP g p = lowerG g
                . ($ p)
                . runReaderT
@@ -168,14 +167,14 @@ lowerCCP g p = lowerG g
 instance Functor CCP where
   fmap = undefined
 
-instance Applicative CCP where
+-- instance Applicative CCP where
 
 -- instance Applicative CCP where
 
-  pure x = CCP $ ReaderT $ \p ->
-    ReaderT $ \g ->
-    (ContT $ \k ->
-    Identity $ (runIdentity $ k x)) `andCT` (($ g) . runReaderT $ p)
+  -- pure x = CCP $ ReaderT $ \p ->
+  --   ReaderT $ \g ->
+  --   (ContT $ \k ->
+  --   Identity (runIdentity $ k x)) `andCT` (($ g) . runReaderT $ p)
 
 
   -- f <*> x = CCP $ ReaderT $ \p ->
@@ -220,11 +219,11 @@ instance Applicative CCP where
 
 -- a function from a finite set to the characteristic function of this set.
 toCharFunc :: Eq a => [a] -> a -> T
-toCharFunc xs x = elem x xs
+toCharFunc xs x = x `elem` xs
 
 -- A function from a quantifier q with a finite domain to a set of sets.
 toSetOfSets :: Eq a => [a] -> ((a -> T) -> T) -> [[a]]
-toSetOfSets qDom q = [ xs | xs <- (powerset qDom), q (toCharFunc xs) ]
+toSetOfSets qDom q = [ xs | xs <- powerset qDom, q (toCharFunc xs) ]
 
 powerset :: [a] -> [[a]]
 powerset [] = [[]]
@@ -232,7 +231,7 @@ powerset (x:xs) = powerset xs ++ map (x:) (powerset xs)
 
 -- a function from a predicate and a finite domain, to the graph of the predicate
 toGraph :: [a] -> (a -> T) -> [(a,T)]
-toGraph dom f = [(x, (f x)) | x <- dom]
+toGraph dom f = [(x, f x) | x <- dom]
 
 -- a function from a predicate and a finite domain, to the set the predicate characterises relative to the domain.
 toSet :: [a] -> (a -> T) -> [a]
