@@ -4,12 +4,12 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, base, indexed, stdenv }:
+  f = { mkDerivation, base, indexed, mtl, stdenv }:
       mkDerivation {
         pname = "shan2002";
         version = "0.1.0.0";
         src = ./.;
-        libraryHaskellDepends = [ base indexed ];
+        libraryHaskellDepends = [ base indexed mtl ];
         license = stdenv.lib.licenses.bsd3;
       };
 
