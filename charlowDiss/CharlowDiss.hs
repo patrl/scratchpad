@@ -1,12 +1,16 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module CharlowDiss where
 
-import Control.Monad.Cont
+import Control.Monad.Indexed
 import Control.Monad.State
 import Data.Function ((&))
+import Data.Functor.Indexed ((<<$>>),(<<*>>))
 
--- TODO: use this module for tripartite towers
--- import qualified Control.Effect as Ix
--- Basic model theory
+-- ----- --
+-- model --
+-- ----- --
+  
 type T = Bool
 
 data E
@@ -37,18 +41,22 @@ hugs A A = True
 hugs A B = True
 hugs _ _ = False
 
+-- ---------------- --
+-- The dynamic tier --
+-- -------------------
+
 -- Monad for state-sensitivity and non-determinism
 type StateSet = StateT [E] []
 
 -- introduce a discourse referent
-drefIntro :: StateSet E -> StateSet E
-drefIntro m = m >>= \v -> StateT $ \i -> [(v, v : i)]
+dref :: StateSet E -> StateSet E
+dref m = m >>= \v -> StateT $ \i -> [(v, v : i)]
 
--- existential quantifier over the domain
+-- dynamic existential
 ex :: StateSet E
 ex = StateT $ \i -> [(x, i) | x <- dom]
 
--- pronouns
+-- pronoun
 pro :: StateSet E
 pro = StateT $ \i -> [(head i, i)]
 
@@ -56,93 +64,133 @@ pro = StateT $ \i -> [(head i, i)]
 notDy :: StateSet T -> StateSet T
 notDy (StateT s) = StateT $ \i -> [(null [x | x <- s i, fst x], i)]
 
--- monadic conjunction
-andM :: Monad m => m T -> m T -> m T
-andM = liftM2 (&&)
+-- ------------------
+-- The scopal tier --
+-- ------------------
+-- We roll our own indexed continuation monad.
+newtype IxKT n o m i = IxKT { (>>-) :: (i -> n m) -> n o }
 
--- the scopal tier
-(>>-) = runContT
+instance IxFunctor (IxKT m) where
+  imap f m = IxKT $ \k -> m >>- (k . f)
+
+instance IxPointed (IxKT m) where
+  ireturn a = IxKT ($a)
+
+instance Monad m => IxApplicative (IxKT m) where
+  iap = iapIxMonad
+
+instance Monad m => IxMonad (IxKT m) where
+  ibind f c = IxKT $ \k -> c >>- \a -> f a >>- k
+
+instance Monad m => Functor (IxKT m o o) where
+  fmap = imap
+
+instance Monad m => Applicative (IxKT m o o) where
+  pure = ireturn
+  (<*>) = iap
+
+instance Monad m => Monad (IxKT m o o) where
+  return = ireturn
+  m >>= k = ibind k m
+
+-- forwards scopal application
+rap :: Monad m => IxKT m o1 i1 (a -> b) -> IxKT m i1 i2 a -> IxKT m o1 i2 b
+rap = (<<*>>)
+
+-- backwards scopal application
+lap :: Monad m => IxKT m o1 i1 a -> IxKT m i1 i2 (a -> b) -> IxKT m o1 i2 b
+n `lap` m = IxKT $ \k -> n >>- \x -> m >>- \f -> k (x & f)
 
 -- continuationize a monadic program
-liftM' :: Monad m => m a -> ContT r m a
-liftM' m = ContT $ (>>=) m
+mLift :: Monad m => m a -> IxKT m o o a
+mLift m = IxKT $ (>>=) m
 
-liftM'' f m1 = do
-  x1 <- m1
-  liftM' (f x1)
+-- Lower a continuationized monadic program
+mLower :: (Monad m) => IxKT m b a a -> m b
+mLower m = m >>- return
 
--- external lift is just liftM'
-extLift :: ContT r m a -> ContT l (ContT r m) a
-extLift = liftM'
+mReset :: (Monad m) => IxKT m b a a -> IxKT m o o b
+mReset = mLift . mLower
 
--- internal lift -- add an intermediate continuation to a continuation
-intLift :: (Monad m) => ContT r1 m a -> ContT r1 m (ContT r2 m a)
-intLift m = ContT $ \c -> m >>- \v -> c (ContT $ \k -> k v)
+bind :: IxKT StateSet o i E -> IxKT StateSet o i E
+bind m = IxKT $ \k -> m >>- \x -> StateT $ \i -> runStateT (k x) (x : i)
 
--- >>> (return hugs) `ap` (intLift evDyCont)
--- <interactive>:363:22: error:
---     • Couldn't match type ‘ContT r20 StateSet E’ with ‘E’
---       Expected type: ContT T StateSet E
---         Actual type: ContT T StateSet (ContT r20 StateSet E)
---     • In the second argument of ‘ap’, namely ‘(intLift evDyCont)’
---       In the expression: (return hugs) `ap` (intLift evDyCont)
---       In an equation for ‘it’: it = (return hugs) `ap` (intLift evDyCont)
-lowerM' :: Monad m => ContT a m (ContT a m a) -> m a
-lowerM' = lowerM . join
+evDyCont :: IxKT StateSet T T E
+evDyCont = IxKT $ \k -> notDy $ ex >>= \x -> notDy $ k x
 
--- >>> ($ []) . runStateT . lowerM' $ ((return . bind . liftM' $ ex) --\-- ((return . return $ hugs) --/-- (intLift evDyCont)))
--- [(False,[])]
--- >>> ($ []) . runStateT . lowerM' $ (return evDyCont) --\-- ((return . return $ hugs) --/-- (intLift . bind . liftM' $ ex))
--- [(True,[A]),(False,[B]),(False,[C])]
--- universal quantifier
-evDyCont :: ContT T StateSet E
-evDyCont = ContT $ \k -> notDy $ ex >>= \x -> notDy $ k x
+-- --------------
+-- determiners --
+-- --------------
+-- r = restrictor
+_a :: IxKT StateSet E T E
+_a =
+  IxKT $ \r ->
+    StateT $ \i -> [(x, i') | x <- dom, (True, i') <- runStateT (r x) i]
 
-bind :: ContT r StateSet E -> ContT r StateSet E
-bind m = ContT $ \k -> m >>- \x -> StateT $ \i -> runStateT (k x) (x : i)
+-- r = restrictor; k = scope
+_every :: (E -> StateSet T) -> IxKT StateSet T T E
+_every r = IxKT $ \k -> notDy ((_a >>- r) >>= (notDy . k))
 
--- feed a continuationized monadic program the trivial monadic continuation
-lowerM :: (Monad m) => ContT a m a -> m a
-lowerM = ($ return) . (>>-)
+-- r = restrictor; k = scope
+_no :: (E -> StateSet T) -> IxKT StateSet T T E
+_no r = IxKT $ \k -> notDy ((_a >>- r) >>= k)
 
-resetM :: (Monad m) => ContT a m a -> ContT r m a
-resetM = liftM' . lowerM
+-- ---------------------
+-- higher order scope --
+-- ---------------------
+-- higher-order forwards scopal application
+rAp ::
+     Monad m
+  => IxKT m o2a i2a (IxKT m o1a i1a (a -> b))
+  -> IxKT m i2a i2b (IxKT m i1a i1b a)
+  -> IxKT m o2a i2b (IxKT m o1a i1b b)
+m `rAp` n = IxKT $ \k -> m >>- \f -> n >>- \x -> k (f `rap` x)
 
--- forward application. Side-effects left-to-right.
-(-/-) :: Monad m => m (a -> b) -> m a -> m b
-(-/-) = ap
+-- higher-order backwards scopal application
+lAp ::
+     Monad m
+  => IxKT m o2a i2a (IxKT m o1a i1a a)
+  -> IxKT m i2a i2b (IxKT m i1a i1b (a -> b))
+  -> IxKT m o2a i2b (IxKT m o1a i1b b)
+n `lAp` m = IxKT $ \k -> n >>- \x -> m >>- \f -> k (x `lap` f)
 
--- higher-order forward application. Side-effects left-to-right
-(--/--) :: (Monad m2, Monad m1) => m1 (m2 (a -> b)) -> m1 (m2 a) -> m1 (m2 b)
-(--/--) = liftM2 (-/-)
+-- external lift
+extLift :: Monad m => IxKT m o1 i a -> IxKT m o2 o2 (IxKT m o1 i a)
+extLift = ireturn
 
--- backwards application. Side-effects left-to-right
-(-\-) :: Monad m => m a -> m (a -> b) -> m b
-(-\-) = liftM2 (&)
+-- internal lift
+intLift :: Monad m => IxKT m o1 i a -> IxKT m o1 i (IxKT m o2 o2 a)
+intLift m = ireturn <<$>> m
 
--- higher-order backwards application. Side-effects left-to-right
-(--\--) :: (Monad m2, Monad m1) => m1 (m2 a) -> m1 (m2 (a -> b)) -> m1 (m2 b)
-(--\--) = liftM2 (-\-)
-  -- Can't we do inverse scope much more simply by changing the order in which side-effects are evaluated?
--- -- forwards application. Side-effects right-to-left.
--- (-//-) :: Monad m => m (a -> b) -> m a -> m b
--- f -//- x = x -\- f
--- -- backwards application. Side-effects right-to-left.
--- (-\\-) :: Monad m => m a -> m (a -> b) -> m b
--- x -\\- f = f `ap` x
--- >>> (liftM' notDy) -/- (resetM $ ((bind . liftM' $ ex) -\- ((return hugs) -/- evDyCont)))
--- <interactive>:153:10: error:
---     • Couldn't match type ‘StateSet T -> StateSet T’
---                      with ‘StateT [E] [] (T -> b)’
---       Expected type: StateSet (T -> b)
---         Actual type: StateSet T -> StateSet T
---     • Probable cause: ‘notDy’ is applied to too few arguments
---       In the first argument of ‘liftM'’, namely ‘notDy’
---       In the first argument of ‘(-/-)’, namely ‘(liftM' notDy)’
---       In the expression:
---         (liftM' notDy)
---           -/-
---             (resetM $ ((bind . liftM' $ ex) -\- ((return hugs) -/- evDyCont)))
---     • Relevant bindings include
---         it :: ContT r StateSet b (bound at <interactive>:153:2)
--- >>> return notDy
+-- lower a two-level tower in one fell swoop.
+mLower2 :: Monad m => IxKT m a a (IxKT m a a a) -> m a
+mLower2 = mLower . ijoin
+
+-- -----------
+-- examples --
+-- -------- --
+
+-- surface scope
+
+-- "A girl hugs every boy"
+
+-- >>> ($ []) . runStateT . mLower $ (mReset (_a `lap` (ireturn girl))) `lap` ((ireturn hugs) `rap` (_every (return <$> boy)))
+-- [(True,[]),(True,[])]
+
+-- "Every boy hugs a girl"
+
+-- >>> ($ []) . runStateT . mLower $ (_every (return <$> boy)) `lap` ((ireturn hugs) `rap` (mReset (_a `lap` (ireturn girl))))
+-- [(True,[])]
+
+-- inverse scope
+
+-- "A girl hugs every boy"
+
+--  >>> ($ []) $ runStateT (mLower2 ((extLift (mReset (_a `lap` (ireturn girl)))) `lAp` (intLift $ (ireturn hugs) `rap` (_every (return <$> boy)))))
+-- [(True,[])]
+
+
+-- "Every boy hugs a girl"
+
+-- >>> ($ []) . runStateT . mLower2 $ (extLift (_every (return <$> boy))) `lAp` (intLift $ (ireturn hugs) `rap` (mReset (_a `lap` (ireturn girl))))
+-- [(False,[]),(True,[])]
