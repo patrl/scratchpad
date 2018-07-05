@@ -111,6 +111,9 @@ instance IxApplicative IxK where
   --                                           k (f x)
   iap = iapIxMonad
 
+-- >>> :t iap
+-- iap :: IxApplicative m => m i j (a -> b) -> m j k1 a -> m i k1 b
+
 
 instance IxMonad IxK where
   ibind f c = IxK $ \k ->
@@ -199,6 +202,8 @@ trace2 = IxK $ id
 
 trace :: IxK (E -> a) a E
 trace = IxK $ id
+
+
 
 -- >>> :t ireturn <$> trace
 -- ireturn <$> trace

@@ -194,3 +194,31 @@ mLower2 = mLower . ijoin
 
 -- >>> ($ []) . runStateT . mLower2 $ (extLift (_every (return <$> boy))) `lAp` (intLift $ (ireturn hugs) `rap` (mReset (_a `lap` (ireturn girl))))
 -- [(False,[]),(True,[])]
+
+-- ------------------- --
+-- extension: movement --
+-- ----------------------
+
+trace :: Monad m => IxKT m (E -> m a) a E
+trace = IxKT $ return
+
+-- "which girl does A hug?"
+-- >>> ($ []) $ runStateT $ join $ mLower $ (mReset (_a `lap` (ireturn girl))) `lap` (mReset ((ireturn A) `lap` ((ireturn hugs) `rap` trace)))
+-- [(False,[]),(True,[])]
+
+ -- "which girl hugs herself?" 
+-- >>> ($ []) $ runStateT $ join $ mLower $ (mReset (_a `lap` (ireturn girl))) `lap` (mReset ((bind trace) `lap` (mLift $ (return hugs) `ap` pro)))
+-- [(False,[B]),(False,[C])]
+
+-- "which girl does she hug?" (strong crossover violation)
+
+-- damnnnn looks like we can't get strong crossover
+-- >>> ($ []) $ runStateT $ join $ mLower $ (bind $ mReset (_a `lap` (ireturn girl))) `lap` (mReset ((mLift pro) `lap` ((ireturn hugs) `rap` (trace))))
+-- [(False,[B]),(False,[C])]
+
+-- only works if "bind" is the definite determiner.
+  
+
+
+
+
