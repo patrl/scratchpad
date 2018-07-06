@@ -218,11 +218,13 @@ _aBoy = mReset (_a `lap` (ireturn boy))
 -- extension: movement --
 -- ----------------------
 
+-- This works, but introduces additional monadic structure that we have to get rid of.
 trace :: Monad m => IxKT m (E -> m a) a E
 trace = IxKT $ return
 
+-- This is what we want, but it's impossible to define.
 trace2 :: Monad m => IxKT m (E -> a) a E
-trace2 = undefined
+trace2 = IxKT $ undefined
 
 -- "which girl does A hug?"
 
