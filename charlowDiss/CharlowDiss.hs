@@ -218,7 +218,7 @@ _aBoy = mReset (_a `lap` (ireturn boy))
 -- extension: movement --
 -- ----------------------
 
--- This works, but introduces additional monadic structure that we have to get rid of.
+-- This works, but introduces additional monadic structure that we have to get rid of with `join`.
 trace :: Monad m => IxKT m (E -> m a) a E
 trace = IxKT $ return
 
@@ -228,13 +228,10 @@ trace2 = IxKT $ undefined
 
 -- "which girl does A hug?"
 
--- >>> apEmptyStack . join . mLower $ _aGirl `lap` (mReset ((ireturn A) `lap` ((ireturn hugs) `rap` trace)))
--- [(False,[]),(True,[])]
+-- >>> apEmptyStack . join . mLower $ (bind _aGirl) `lap` (mReset ((ireturn A) `lap` ((ireturn hugs) `rap` trace)))
+-- [(False,[B]),(True,[C])]
 
--- "which girl hugs which boy"
+-- "Which boy hugs which girl"
 
--- >>> :t (mReset (_aGirl `lap` (mReset (trace `lap` ((ireturn hugs) `rap` trace)))))
--- (mReset (_aGirl `lap` (mReset (trace `lap` ((ireturn hugs) `rap` trace)))))
---   :: IxKT StateSet o o (StateSet (E -> StateSet T))
-
-
+-- >>> apEmptyStack $ mLower ((bind _aBoy) `lap` (mLift ((join $ mLower (join <<$>> ((bind _aGirl) `lap` (mReset (trace `lap` (mReset $ (ireturn hugs) `rap` trace)))))))))
+-- [(False,[B,A]),(True,[C,A])]
