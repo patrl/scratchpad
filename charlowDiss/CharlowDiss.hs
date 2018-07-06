@@ -170,6 +170,12 @@ mLower2 = mLower . ijoin
 -- examples --
 -- -------- --
 
+-- >>> ($ []) . runStateT . mLower $ (mReset $ (mReset (_a `lap` (ireturn girl))) `lap` (ireturn leave))
+-- [(True,[]),(False,[])]
+
+-- >>> ($ []) . runStateT . mLower . mReset $ (_every (return <$> boy)) `lap` (ireturn leave)
+-- [(True,[])]
+
 -- surface scope
 
 -- "A girl hugs every boy"
