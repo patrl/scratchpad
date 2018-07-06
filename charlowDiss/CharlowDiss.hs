@@ -170,6 +170,19 @@ mLower2 = mLower . ijoin
 -- examples --
 -- -------- --
 
+apEmptyStack = ($ []) . runStateT
+
+_everyBoy = _every (return <$> boy)
+_aGirl = mReset (_a `lap` (ireturn girl))
+_aBoy = mReset (_a `lap` (ireturn boy))
+
+-- ex 4.7, p. 94
+
+-- >>> apEmptyStack $ mLower $ (mReset $ (bind _aGirl) `lap` ((ireturn hugs) `rap` _everyBoy)) `lap` ((ireturn (&&)) `rap` (mReset $ (mLift pro) `lap` (ireturn leave)))
+-- [(True,[B]),(False,[C])]
+
+
+
 -- >>> ($ []) . runStateT . mLower $ (mReset $ (mReset (_a `lap` (ireturn girl))) `lap` (ireturn leave))
 -- [(True,[]),(False,[])]
 
@@ -208,23 +221,18 @@ mLower2 = mLower . ijoin
 trace :: Monad m => IxKT m (E -> m a) a E
 trace = IxKT $ return
 
+trace2 :: Monad m => IxKT m (E -> a) a E
+trace2 = undefined
+
 -- "which girl does A hug?"
--- >>> ($ []) $ runStateT $ join $ mLower $ (mReset (_a `lap` (ireturn girl))) `lap` (mReset ((ireturn A) `lap` ((ireturn hugs) `rap` trace)))
+
+-- >>> apEmptyStack . join . mLower $ _aGirl `lap` (mReset ((ireturn A) `lap` ((ireturn hugs) `rap` trace)))
 -- [(False,[]),(True,[])]
 
- -- "which girl hugs herself?" 
--- >>> ($ []) $ runStateT $ join $ mLower $ (mReset (_a `lap` (ireturn girl))) `lap` (mReset ((bind trace) `lap` (mLift $ (return hugs) `ap` pro)))
--- [(False,[B]),(False,[C])]
+-- "which girl hugs which boy"
 
--- "which girl does she hug?" (strong crossover violation)
-
--- damnnnn looks like we can't get strong crossover
--- >>> ($ []) $ runStateT $ join $ mLower $ (bind $ mReset (_a `lap` (ireturn girl))) `lap` (mReset ((mLift pro) `lap` ((ireturn hugs) `rap` (trace))))
--- [(False,[B]),(False,[C])]
-
--- only works if "bind" is the definite determiner.
-  
-
-
+-- >>> :t (mReset (_aGirl `lap` (mReset (trace `lap` ((ireturn hugs) `rap` trace)))))
+-- (mReset (_aGirl `lap` (mReset (trace `lap` ((ireturn hugs) `rap` trace)))))
+--   :: IxKT StateSet o o (StateSet (E -> StateSet T))
 
 
