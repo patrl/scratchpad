@@ -3,10 +3,7 @@
 module Shan2002 where
 
 import Control.Monad.Indexed
-import Control.Monad
-import Data.Functor.Compose
 import Control.Monad.State
-import Data.Function ((&))
 
 type T = Bool
 
@@ -62,17 +59,19 @@ pro = StateT $ \i -> [(head i, i)]
 
 
 -- someone :: IxK T T E
-someone = IxK $ \k -> any k dom
+someone :: IxK Bool Bool E
+someone = IxK $ \k -> any k dom
 
 -- someone3 :: IxK (E -> t) T E
 -- someone3 = IxK $ \k -> \x -> any (\x -> (k x)) dom
 
+who :: [E]
 who = dom
 
 -- Let's role out own continuation monad with handy infix notation
-data K a b = K { (>>-) :: (b -> a) -> a }
+newtype K a b = K { (>>-) :: (b -> a) -> a }
 
-lower :: K a a -> a 
+lower :: K a a -> a
 lower kt = kt >>- id
 
 instance Functor (K a) where
@@ -91,18 +90,18 @@ instance Monad (K a) where
   return = pure
   kx >>= m = K $ \k ->
                    kx >>- \x ->
-                            (m x) >>- \f ->
+                            m x >>- \f ->
                                         k f
 
 -- Now let's role our own indexed continuation monad
-data IxK o m i = IxK { (>>>-) :: (i -> m) -> o }
+newtype IxK o m i = IxK { (>>>-) :: (i -> m) -> o }
 
 instance IxFunctor IxK where
   imap f kx = IxK $ \k ->
                       kx >>>- (k . f)
 
 instance IxPointed IxK where
-  ireturn a = IxK $ ($a)
+  ireturn a = IxK ($a)
 
 instance IxApplicative IxK where
   -- kf `iap` kx = IxK $ \k ->
@@ -118,7 +117,7 @@ instance IxApplicative IxK where
 instance IxMonad IxK where
   ibind f c = IxK $ \k ->
                       c >>>- \a ->
-                               (f a) >>>- k
+                               f a >>>- k
 
 instance Functor (IxK o o) where
   fmap = imap
@@ -128,10 +127,13 @@ instance Applicative (IxK o o) where
   (<*>) = iap
 
 instance Monad (IxK o o) where
-  return = ireturn 
+  return = ireturn
   m >>= k = ibind k m
 
 -- application for three-level indexed towers
+iapp :: IxApplicative m1 =>
+              IxK o m2 (m1 i j (a -> b))
+              -> IxK m2 m3 (m1 j k1 a) -> IxK o m3 (m1 i k1 b)
 m `iapp` n = IxK $ \k ->
                    m >>>- \f ->
                             n >>>- \x ->
@@ -145,7 +147,7 @@ m `iapp` n = IxK $ \k ->
 --      -> IxK m2 m3 (m1 j k1 a) -> IxK o m3 (m1 i k1 b)
 
 
-data IxKT n o m i = IxKT { (>>>>-) :: (i -> n m) -> n o }
+newtype IxKT n o m i = IxKT { (>>>>-) :: (i -> n m) -> n o }
 
 instance IxFunctor (IxKT m) where
   imap f m = IxKT $ \k ->
@@ -161,7 +163,7 @@ instance Monad m => IxApplicative (IxKT m) where
 instance Monad m => IxMonad (IxKT m) where
   ibind f c = IxKT $ \k ->
                        c >>>>- \a ->
-                                 (f a) >>>>- k
+                                 f a >>>>- k
 
 instance Monad m => Monad (IxKT m o o) where
   return = ireturn
@@ -180,7 +182,7 @@ instance Monad m => Functor (IxKT m o o) where
 instance Monad m => Applicative (IxKT m o o) where
   pure = ireturn
   (<*>) = iap
-  
+
 -- Double movement
 
 -- >>> (((ireturn ((((ireturn hugs) `iap` trace) `iap` trace) >>>- id)) `iap` someone) `iap` someone) >>>- id
@@ -196,12 +198,12 @@ instance Monad m => Applicative (IxKT m o o) where
 
 -- how do I close this off????
 
-trace2 :: IxK ((IxK Bool Bool E) -> a) a (IxK Bool Bool E)
-trace2 = IxK $ id
+trace2 :: IxK (IxK Bool Bool E -> a) a (IxK Bool Bool E)
+trace2 = IxK id
 -- trace2 = IxK $ id
 
 trace :: IxK (E -> a) a E
-trace = IxK $ id
+trace = IxK id
 
 
 
