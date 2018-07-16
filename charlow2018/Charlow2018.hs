@@ -3,7 +3,6 @@
 -- TODO: get binding reconstruction working
 module Charlow2018 where
 
-import Control.Applicative
 import Data.Coerce
 import Data.Functor.Compose
 import Model
@@ -31,6 +30,7 @@ _g4 Var_3 = Dick
 
 _g5 :: Assignment (G Ent Ent)
 _g5 Var_1 = G (\g -> _brother (g Var_2))
+_g5 _ = undefined
 
 type Pro a b = Var -> G a b
 
@@ -39,10 +39,13 @@ type Pro a b = Var -> G a b
 _pro :: Pro a a
 _pro n = G (\g -> g n)
 
-_proPaycheck = _pro :: Pro (G Ent Ent) (G Ent Ent)
+proPaycheck :: Pro (G Ent Ent) (G Ent Ent)
+proPaycheck = _pro :: Pro (G Ent Ent) (G Ent Ent)
 
+_proDP :: Pro Ent Ent
 _proDP = _pro :: Pro Ent Ent
 
+_proVP :: Pro (Ent -> T) (Ent -> T)
 _proVP = _pro :: Pro (Ent -> T) (Ent -> T)
 
 -- G is the generalized type constructor for assignment sensitive meanings.
@@ -85,7 +88,7 @@ modify g i x = g'
 
 -- Abstraction relative to a variable.
 _Λ :: Var -> G a b -> G a (a -> b)
-_Λ n (G f) = G (\g x -> f (modify g n x))
+_Λ n (G f) = G (\ g x -> f (modify g n x))
 
 -- helper functions for the newtype wrapper
 fromG :: G a b -> Assignment a -> b
