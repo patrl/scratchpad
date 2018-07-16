@@ -10,7 +10,7 @@ import Data.Functor.Indexed ((<<$>>),(<<*>>))
 -- ----- --
 -- model --
 -- ----- --
-  
+
 type T = Bool
 
 data E
@@ -170,11 +170,15 @@ mLower2 = mLower . ijoin
 -- examples --
 -- -------- --
 
+apEmptyStack :: StateT [a1] m a2 -> m (a2, [a1])
 apEmptyStack = ($ []) . runStateT
 
+_everyBoy :: IxKT StateSet T T E
 _everyBoy = _every (return <$> boy)
-_aGirl = mReset (_a `lap` (ireturn girl))
-_aBoy = mReset (_a `lap` (ireturn boy))
+_aGirl :: IxKT StateSet o o E
+_aGirl = mReset (_a `lap` ireturn girl)
+_aBoy :: IxKT StateSet o o E
+_aBoy = mReset (_a `lap` ireturn boy)
 
 -- ex 4.7, p. 94
 
@@ -220,11 +224,11 @@ _aBoy = mReset (_a `lap` (ireturn boy))
 
 -- This works, but introduces additional monadic structure that we have to get rid of with `join`.
 trace :: Monad m => IxKT m (E -> m a) a E
-trace = IxKT $ return
+trace = IxKT return
 
 -- This is what we want, but it's impossible to define.
 trace2 :: Monad m => IxKT m (E -> a) a E
-trace2 = IxKT $ undefined
+trace2 = IxKT undefined
 
 -- "which girl does A hug?"
 
