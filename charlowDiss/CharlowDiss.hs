@@ -5,12 +5,11 @@ module CharlowDiss where
 import Control.Monad.Indexed
 import Control.Monad.State
 import Data.Function ((&))
-import Data.Functor.Indexed ((<<$>>),(<<*>>))
+import Data.Functor.Indexed ((<<$>>), (<<*>>))
 
 -- ----- --
 -- model --
 -- ----- --
-
 type T = Bool
 
 data E
@@ -44,7 +43,6 @@ hugs _ _ = False
 -- ---------------- --
 -- The dynamic tier --
 -- -------------------
-
 -- Monad for state-sensitivity and non-determinism
 type StateSet = StateT [E] []
 
@@ -169,59 +167,42 @@ mLower2 = mLower . ijoin
 -- -----------
 -- examples --
 -- -------- --
-
 apEmptyStack :: StateT [a1] m a2 -> m (a2, [a1])
 apEmptyStack = ($ []) . runStateT
 
 _everyBoy :: IxKT StateSet T T E
 _everyBoy = _every (return <$> boy)
+
 _aGirl :: IxKT StateSet o o E
 _aGirl = mReset (_a `lap` ireturn girl)
+
 _aBoy :: IxKT StateSet o o E
 _aBoy = mReset (_a `lap` ireturn boy)
 
 -- ex 4.7, p. 94
-
 -- >>> apEmptyStack $ mLower $ (mReset $ (bind _aGirl) `lap` ((ireturn hugs) `rap` _everyBoy)) `lap` ((ireturn (&&)) `rap` (mReset $ (mLift pro) `lap` (ireturn leave)))
 -- [(True,[B]),(False,[C])]
-
-
-
 -- >>> ($ []) . runStateT . mLower $ (mReset $ (mReset (_a `lap` (ireturn girl))) `lap` (ireturn leave))
 -- [(True,[]),(False,[])]
-
 -- >>> ($ []) . runStateT . mLower . mReset $ (_every (return <$> boy)) `lap` (ireturn leave)
 -- [(True,[])]
-
 -- surface scope
-
 -- "A girl hugs every boy"
-
 -- >>> ($ []) . runStateT . mLower $ (mReset (_a `lap` (ireturn girl))) `lap` ((ireturn hugs) `rap` (_every (return <$> boy)))
 -- [(True,[]),(True,[])]
-
 -- "Every boy hugs a girl"
-
 -- >>> ($ []) . runStateT . mLower $ (_every (return <$> boy)) `lap` ((ireturn hugs) `rap` (mReset (_a `lap` (ireturn girl))))
 -- [(True,[])]
-
 -- inverse scope
-
 -- "A girl hugs every boy"
-
 --  >>> ($ []) $ runStateT (mLower2 ((extLift (mReset (_a `lap` (ireturn girl)))) `lAp` (intLift $ (ireturn hugs) `rap` (_every (return <$> boy)))))
 -- [(True,[])]
-
-
 -- "Every boy hugs a girl"
-
 -- >>> ($ []) . runStateT . mLower2 $ (extLift (_every (return <$> boy))) `lAp` (intLift $ (ireturn hugs) `rap` (mReset (_a `lap` (ireturn girl))))
 -- [(False,[]),(True,[])]
-
 -- ------------------- --
 -- extension: movement --
 -- ----------------------
-
 -- This works, but introduces additional monadic structure that we have to get rid of with `join`.
 trace :: Monad m => IxKT m (E -> m a) a E
 trace = IxKT return
@@ -229,13 +210,9 @@ trace = IxKT return
 -- This is what we want, but it's impossible to define.
 trace2 :: Monad m => IxKT m (E -> a) a E
 trace2 = IxKT undefined
-
 -- "which girl does A hug?"
-
 -- >>> apEmptyStack . join . mLower $ (bind _aGirl) `lap` (mReset ((ireturn A) `lap` ((ireturn hugs) `rap` trace)))
 -- [(False,[B]),(True,[C])]
-
 -- "Which boy hugs which girl"
-
 -- >>> apEmptyStack $ mLower ((bind _aBoy) `lap` (mLift ((join $ mLower (join <<$>> ((bind _aGirl) `lap` (mReset (trace `lap` (mReset $ (ireturn hugs) `rap` trace)))))))))
 -- [(False,[B,A]),(True,[C,A])]
