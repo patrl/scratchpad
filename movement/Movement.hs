@@ -28,7 +28,7 @@ leave _ = True
 friend :: Arg E (Arg E T)
 friend _ A = True
 friend _ _ = False
-
+  
 someone :: K T E
 someone = K $ \k -> any k dom
 
