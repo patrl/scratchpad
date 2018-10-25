@@ -24,14 +24,14 @@ instance Ord E where
   compare (E (_,n1)) (E (_,n2)) = compare n1 n2
 
 boys, girls :: [E]
-boys = map (\x -> E ("b", x)) [1 .. 3]
-girls = map (\x -> E ("g", x)) [1 .. 3]
+boys = map (\x -> E ("b", x)) [1 .. 2]
+girls = map (\x -> E ("g", x)) [1 .. 2]
 
-_b1, _b2, _b3 :: E
-[_b1, _b2, _b3] = boys
+_b1, _b2 :: E
+[_b1, _b2 ] = boys
 
-_g1, _g2, _g3 :: E
-[_g1, _g2, _g3] = girls
+_g1, _g2 :: E
+[_g1, _g2 ] = girls
 
 dom :: [E]
 dom = boys ++ girls
@@ -63,4 +63,3 @@ _pities (E (x, n)) (E (y, m)) = x == y && n < m
 -- b2 listens to g6, as does b3, but b4 doesn't, and neither does g2
 _listensTo (E (x, n)) (E (y, m)) =
   n `mod` m == 0 && (x == "g" && y == "b" || x == "b" && y == "g")
-

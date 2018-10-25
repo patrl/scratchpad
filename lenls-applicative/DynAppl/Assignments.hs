@@ -13,12 +13,12 @@
  -- Pretty-prints assignments
  -- TODO use prettyprint for this
  instance Show Assignment where
-   show (Assignment xs) = ((unwords . map show) xs) ++ "\n"
+   show (Assignment xs) = (unwords . map show) xs ++ "\n"
 
- _a1 :: Assignment
- _a1 = Assignment [ E ("b", 1), E ("b", 2), E ("b", 3)]
- _a2 :: Assignment
- _a2 = Assignment [ E ("g", 1), E ("g", 2), E ("g", 3)]
+ -- test assignments:
+ _a1,_a2 :: Assignment
+ _a1 = Assignment [E ("b", 1), E ("b", 2)]
+ _a2 = Assignment [E ("g", 1), E ("g", 2)]
 
  type Var = Int
 
