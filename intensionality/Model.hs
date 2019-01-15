@@ -125,3 +125,7 @@ _brother W2 Tom = Dick
 _eachOfTomAndHarry ∷ (Ent → T) → T
 _eachOfTomAndHarry f = (f Tom == True) && (f Harry == True)
 
+
+-- Local Variables:
+-- dante-command-line: ("nix-shell" "--run" "cabal repl --builddir=dist/dante")
+-- End:

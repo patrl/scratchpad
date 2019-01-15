@@ -1,12 +1,12 @@
--- | 
-
 module DynamicEllipsis where
 
-import Control.Lens (element, set)
-import Control.Monad (replicateM)
-import Control.Monad.Identity
-import Control.Monad.Reader
-import Control.Monad.State
+import           Control.Lens                   ( element
+                                                , set
+                                                )
+import           Control.Monad                  ( replicateM )
+import           Control.Monad.Identity
+import           Control.Monad.Reader
+import           Control.Monad.State
 
 data E
   = A
@@ -77,7 +77,7 @@ modifyG :: C E -> Var -> E -> C E
 modifyG g n x = set (element n) x g
 
 modified :: C E -> Var -> [C E]
-modified g n = [modifyG g n x | x <- dom]
+modified g n = [ modifyG g n x | x <- dom ]
 
 -- a function from a finite set to the characteristic function of this set.
 toCharFunc :: Eq a => [a] -> a -> T
@@ -85,19 +85,19 @@ toCharFunc xs x = x `elem` xs
 
 -- A function from a quantifier q with a finite domain to a set of sets.
 toSetOfSets :: Eq a => [a] -> ((a -> T) -> T) -> [[a]]
-toSetOfSets qDom q = [xs | xs <- powerset qDom, q (toCharFunc xs)]
+toSetOfSets qDom q = [ xs | xs <- powerset qDom, q (toCharFunc xs) ]
 
 powerset :: [a] -> [[a]]
-powerset [] = [[]]
-powerset (x:xs) = powerset xs ++ map (x :) (powerset xs)
+powerset []       = [[]]
+powerset (x : xs) = powerset xs ++ map (x :) (powerset xs)
 
 -- a function from a predicate and a finite domain, to the graph of the predicate
 toGraph :: [a] -> (a -> T) -> [(a, T)]
-toGraph domvar f = [(x, f x) | x <- domvar]
+toGraph domvar f = [ (x, f x) | x <- domvar ]
 
 -- a function from a predicate and a finite domain, to the set the predicate characterises relative to the domain.
 toSet :: [a] -> (a -> T) -> [a]
-toSet domvar f = [x | (x, True) <- toGraph domvar f]
+toSet domvar f = [ x | (x, True) <- toGraph domvar f ]
 
 -- pretty prints an assignment
 prettyPrintAssignment :: C E -> IO ()

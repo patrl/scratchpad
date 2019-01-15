@@ -1,13 +1,15 @@
 module DynCont where
 
-import Control.Applicative (liftA2)
-import Control.Lens (element, set)
-import Control.Monad (replicateM)
-import Control.Monad.Cont
-import Control.Monad.Identity
-import Control.Monad.Reader
-import Data.Coerce
-import Data.Functor.Compose
+import           Control.Applicative            ( liftA2 )
+import           Control.Lens                   ( element
+                                                , set
+                                                )
+import           Control.Monad                  ( replicateM )
+import           Control.Monad.Cont
+import           Control.Monad.Identity
+import           Control.Monad.Reader
+import           Data.Coerce
+import           Data.Functor.Compose
 
 data E
   = A
@@ -61,7 +63,7 @@ lowerG g = ($ g) . runReaderT
 modify :: C E -> Var -> E -> C E
 modify g n x = set (element n) x g
 
-modified g n = [modify g n x | x <- dom]
+modified g n = [ modify g n x | x <- dom ]
 
 -- a function from a finite set to the characteristic function of this set.
 toCharFunc :: Eq a => [a] -> a -> T
@@ -69,19 +71,19 @@ toCharFunc xs x = x `elem` xs
 
 -- A function from a quantifier q with a finite domain to a set of sets.
 toSetOfSets :: Eq a => [a] -> ((a -> T) -> T) -> [[a]]
-toSetOfSets qDom q = [xs | xs <- powerset qDom, q (toCharFunc xs)]
+toSetOfSets qDom q = [ xs | xs <- powerset qDom, q (toCharFunc xs) ]
 
 powerset :: [a] -> [[a]]
-powerset [] = [[]]
-powerset (x:xs) = powerset xs ++ map (x :) (powerset xs)
+powerset []       = [[]]
+powerset (x : xs) = powerset xs ++ map (x :) (powerset xs)
 
 -- a function from a predicate and a finite domain, to the graph of the predicate
 toGraph :: [a] -> (a -> T) -> [(a, T)]
-toGraph dom f = [(x, f x) | x <- dom]
+toGraph dom f = [ (x, f x) | x <- dom ]
 
 -- a function from a predicate and a finite domain, to the set the predicate characterises relative to the domain.
 toSet :: [a] -> (a -> T) -> [a]
-toSet dom f = [x | (x, True) <- toGraph dom f]
+toSet dom f = [ x | (x, True) <- toGraph dom f ]
 
 -- pretty prints an assignment
 prettyPrintAssignment :: C E -> IO ()
@@ -105,13 +107,13 @@ instance Monad CCP where
 
 -- categorematic abstraction
 abstract :: Var -> G Identity a -> G Identity (E -> a)
-abstract n (ReaderT f) = ReaderT (\g -> Identity $ runIdentity . f . modify g n)
+abstract n (ReaderT f) =
+  ReaderT (\g -> Identity $ runIdentity . f . modify g n)
 
 -- Totally standard entry for existential quantification
 ex :: Var -> G Identity T -> G Identity T
-ex n (ReaderT p) =
-  ReaderT
-    (\g -> Identity (not . null $ filter (runIdentity . p) (modified g n)))
+ex n (ReaderT p) = ReaderT
+  (\g -> Identity (not . null $ filter (runIdentity . p) (modified g n)))
   -- Totally standard universal quantification.
 
 forall :: Var -> G Identity T -> G Identity T
