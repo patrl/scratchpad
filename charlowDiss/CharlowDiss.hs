@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 
 module CharlowDiss where
 
@@ -216,3 +216,57 @@ trace2 = IxKT undefined
 -- "Which boy hugs which girl"
 -- >>> apEmptyStack $ mLower ((bind _aBoy) `lap` (mLift ((join $ mLower (join <<$>> ((bind _aGirl) `lap` (mReset (trace `lap` (mReset $ (ireturn hugs) `rap` trace)))))))))
 -- [(False,[B,A]),(True,[C,A])]
+--
+
+-- >>> apEmptyStack $ mLower ((bind _aBoy) `lap` (mLift ((join $ mLower (join <<$>> ((bind _aGirl) `lap` (mReset (trace `lap` (mReset $ (ireturn hugs) `rap` trace)))))))))
+--
+
+
+-- >>> ($ []) . runStateT . mLower $ (mReset (_a `lap` (ireturn girl))) `lap` ((ireturn hugs) `rap` (_every (return <$> boy)))-- [(True,[]),(True,[])]
+-- [(True,[]),(True,[])]
+
+-- class A a b where
+  -- apply :: a -> b
+-- instance A (a -> b) (a -> b) where
+  -- apply = ($)
+-- instance A a ((a -> b) -> b) where
+  -- apply = (&)
+
+-- >>> :t ($)
+-- ($) :: (a -> b) -> a -> b
+
+-- >>> :t (&)
+-- (&) :: a -> (a -> b) -> b
+
+-- >>> apply 1 (+2)-- <interactive>:34:2: error:
+-- <interactive>:166:2: error:
+--     • Non type-variable argument
+--         in the constraint: A a1 ((a2 -> a2) -> t)
+--       (Use FlexibleContexts to permit this)
+--     • When checking the inferred type
+--         it :: forall a1 a2 t. (A a1 ((a2 -> a2) -> t), Num a1, Num a2) => t
+--
+-- >>> (apply :: (Int -> Int) -> Int -> Int) (+2) 1
+-- 3
+--
+--
+
+-- >>> :t (apply (+2) 1)
+-- (apply (+2) 1) :: (A (a -> a) (t1 -> t2), Num a, Num t1) => t2
+--
+
+-- >>> apply (1 :: Int) ((+2) :: Int -> Int )
+-- <interactive>:229:2: error:
+--     • Non type-variable argument
+--         in the constraint: A Int ((Int -> Int) -> t)
+--       (Use FlexibleContexts to permit this)
+--     • When checking the inferred type
+--         it :: forall t. A Int ((Int -> Int) -> t) => t
+
+-- >>> apply (+2) 1
+-- <interactive>:149:2: error:
+--     • Non type-variable argument
+--         in the constraint: A (a -> a) (t1 -> t2)
+--       (Use FlexibleContexts to permit this)
+--     • When checking the inferred type
+--         it :: forall a t1 t2. (A (a -> a) (t1 -> t2), Num a, Num t1) => t2
