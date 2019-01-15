@@ -42,11 +42,17 @@ _vapes = \case
   Hubert -> [W3, W4]
 
 _stoppedSmoking :: E -> U (Set S)
-_stoppedSmoking x = StateT
-  (\c -> if c `Set.isSubsetOf` _didSmoke x
-    then Just (worlds Set.\\ _smokesNow x, c)
-    else Nothing
-  )
+_stoppedSmoking = toPresuppPred _didSmoke (propNeg <$> _smokesNow)
+
+propNeg :: Set S -> Set S
+propNeg = (Set.\\) worlds
+
+-- >>> propNeg <$> _smokesNow $ Paul
+-- fromList [W3,W4]
+
+toPresuppPred :: (E -> Set S) -> (E -> Set S) -> E -> U (Set S)
+toPresuppPred presupp assertion x = StateT
+  (\c -> if c `Set.isSubsetOf` presupp x then Just (assertion x, c) else Nothing)
 
 -- Takes a lifted Stalnakerian proposition, and turns it into a Stalnakerian assertion (i.e., a partial update of the common ground)
 assert :: U (Set S) -> U (Set S)
@@ -59,15 +65,19 @@ assert m = StateT
           (_     , _      ) -> Nothing
   )
 
-statConj :: Set S -> Set S -> Set S
-statConj = Set.intersection
+propConj :: Set S -> Set S -> Set S
+propConj = Set.intersection
 
 -- a helper function to update the ignorance context
 updIgnorance :: U (Set S) -> Maybe (Set S, Set S)
 updIgnorance = ($ worlds) . runStateT
 
--- >>> (updIgnorance . assert . (return :: a -> U a)) (_vapes Paul)
--- Just (fromList [W1,W2],fromList [W1,W2])
+-- "Paul did smoke and Paul stopped smoking"
 
--- >>> Set.fromList [W1 .. W4] Set.\\ _smokesNow Paul
--- fromList [W3,W4]
+-- >>> updIgnorance $ (liftM2 propConj) (assert $ return $ _didSmoke Paul) (assert $ _stoppedSmoking Paul)
+-- Just (fromList [W3],fromList [W3])
+
+-- "Paul stopped smoking and Paul did smoke"
+
+-- >>> updIgnorance $ (liftM2 propConj) (assert $ _stoppedSmoking Paul) (assert $ return $ _didSmoke Paul)
+-- Nothing
