@@ -44,15 +44,13 @@ _vapes = \case
 _stoppedSmoking :: E -> U (Set S)
 _stoppedSmoking = toPresuppPred _didSmoke (propNeg <$> _smokesNow)
 
-propNeg :: Set S -> Set S
-propNeg = (Set.\\) worlds
 
 -- >>> propNeg <$> _smokesNow $ Paul
 -- fromList [W3,W4]
 
 toPresuppPred :: (E -> Set S) -> (E -> Set S) -> E -> U (Set S)
 toPresuppPred presupp assertion x = StateT
-  (\c -> if c `Set.isSubsetOf` presupp x then Just (assertion x, c) else Nothing)
+  (\c -> if c `propEntails` presupp x then Just (assertion x, c) else Nothing)
 
 -- Takes a lifted Stalnakerian proposition, and turns it into a Stalnakerian assertion (i.e., a partial update of the common ground)
 assert :: U (Set S) -> U (Set S)
@@ -61,16 +59,99 @@ assert m = StateT
     let outputVal   = evalStateT m c
         outputState = execStateT m c
     in  case (outputVal, outputState) of
-          (Just p, Just c') -> Just (p, c' `Set.intersection` p)
+          (Just p, Just c') -> Just (p, c' ∩ p)
           (_     , _      ) -> Nothing
   )
 
-propConj :: Set S -> Set S -> Set S
-propConj = Set.intersection
+-- unicode set theory symbols for readability
+
+(∩) :: Ord a => Set a -> Set a -> Set a
+(∩) = Set.intersection
+
+(∪) :: Ord a => Set a -> Set a -> Set a
+(∪) = Set.union
+
+(∖) :: Ord a => Set a -> Set a -> Set a
+(∖) = (Set.\\)
+
+(⊆) :: Ord a => Set a -> Set a -> Bool
+(⊆) = Set.isSubsetOf
+
+propNeg :: Set S -> Set S
+propNeg = (∖) worlds
+
+propEntails :: Set S -> Set S -> Bool
+propEntails = (⊆)
+
+propImplic :: Set S -> Set S -> Set S
+p `propImplic` q = propNeg p ∪ q
 
 -- a helper function to update the ignorance context
 updIgnorance :: U (Set S) -> Maybe (Set S, Set S)
 updIgnorance = ($ worlds) . runStateT
+
+---
+-- Heimian connectives.
+--
+-- N.b. that the following definitions assume that every propositional node is subject to
+-- the "assert" operator.
+---
+
+heimNeg :: U (Set S) -> U (Set S)
+heimNeg m = StateT
+  (\c ->
+    let outputVal   = evalStateT m c
+        outputState = execStateT m c
+    in  case (outputVal, outputState) of
+          (Just p, Just c') -> Just (worlds ∖ p, c ∖ c')
+          (_     , _      ) -> Nothing
+  )
+
+heimConj :: U (Set S) -> U (Set S) -> U (Set S)
+m `heimConj` n = StateT
+  (\c ->
+    let interVal   = evalStateT m c
+        interState = execStateT m c
+    in  case (interVal, interState) of
+          (Just p, Just c') ->
+            let outVal   = evalStateT n c'
+                outState = execStateT n c'
+            in  case (outVal, outState) of
+                  (Just q, Just c'') -> Just (p ∩ q, c'')
+                  (_     , _       ) -> Nothing
+          (_, _) -> Nothing
+  )
+
+heimDisj :: U (Set S) -> U (Set S) -> U (Set S)
+m `heimDisj` n = StateT
+  (\c ->
+    let interVal   = evalStateT m c
+        interState = execStateT m c
+    in  case (interVal, interState) of
+          (Just p, Just c') ->
+            let outVal   = evalStateT n (c ∖ c')
+                outState = execStateT n (c ∖ c')
+            in  case (outVal, outState) of
+                  (Just q, Just c'') -> Just (p ∪ q, c' ∪ c'')
+                  (_     , _       ) -> Nothing
+          (_, _) -> Nothing
+  )
+
+heimImplic :: U (Set S) -> U (Set S) -> U (Set S)
+m `heimImplic` n = StateT
+  (\c ->
+    let interVal   = evalStateT m c
+        interState = execStateT m c
+    in  case (interVal, interState) of
+          (Just p, Just c') ->
+            let outVal   = evalStateT n c'
+                outState = execStateT n c'
+            in  case (outVal, outState) of
+                  (Just q, Just c'') -> Just (worlds ∖ p ∪ q, c ∖ c' ∪ c'')
+                  (_     , _       ) -> Nothing
+          (_, _) -> Nothing
+  )
+
 
 -- "Paul did smoke and Paul stopped smoking"
 
