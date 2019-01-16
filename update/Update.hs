@@ -152,13 +152,42 @@ m `heimImplic` n = StateT
           (_, _) -> Nothing
   )
 
+-- "Paul did smoke and Paul stopped smoking." (presupposition satisfaction)
 
--- "Paul did smoke and Paul stopped smoking"
-
--- >>> updIgnorance $ (liftM2 propConj) (assert $ return $ _didSmoke Paul) (assert $ _stoppedSmoking Paul)
+-- (a) with Heimian conjunction:
+-- >>> updIgnorance $ (assert $ return $ _didSmoke Paul) `heimConj` (assert $ _stoppedSmoking Paul)
 -- Just (fromList [W3],fromList [W3])
 
--- "Paul stopped smoking and Paul did smoke"
+-- (b) with lifted static conjunction:
+-- >>> updIgnorance $ (liftM2 (∩)) (assert $ return $ _didSmoke Paul) (assert $ _stoppedSmoking Paul)
+-- Just (fromList [W3],fromList [W3])
 
--- >>> updIgnorance $ (liftM2 propConj) (assert $ _stoppedSmoking Paul) (assert $ return $ _didSmoke Paul)
+-- "Paul stopped smoking and Paul did smoke." (presupposition failure)
+
+-- (a) with Heimian conjunction:
+-- >>> updIgnorance $ (assert $ _stoppedSmoking Paul) `heimConj` (assert $ return $ _didSmoke Paul)
+-- Nothing
+
+-- (b) with lifted static conjunction:
+-- >>> updIgnorance $ (liftM2 (∩)) (assert $ _stoppedSmoking Paul) (assert $ return $ _didSmoke Paul)
+-- Nothing
+
+-- "Paul didn't stop smoking." (presupposition failure)
+
+-- (a) with Heimian negation.
+-- >>> updIgnorance $ heimNeg $ assert $ _stoppedSmoking Paul
+-- Nothing
+
+-- "Paul did smoke and Paul didn't stop smoking." (presupposition satisfaction)
+
+-- (a) with Heimian negation.
+-- >>> updIgnorance $ (assert $ return $ _didSmoke Paul) `heimConj` (heimNeg $ assert $ _stoppedSmoking Paul)
+-- Just (fromList [W1],fromList [W1])
+
+-- "If Paul did smoke then Paul stopped smoking." (presupposition satisfaction)
+-- >>> updIgnorance $ (assert $ return $ _didSmoke Paul) `heimImplic` (assert $ _stoppedSmoking Paul)
+-- Just (fromList [W2,W3,W4],fromList [W2,W3,W4])
+
+-- "If Paul didn't smoke then Paul stopped smoking." (presupposition failure)
+-- >>> updIgnorance $ (heimNeg $ assert $ return $ _didSmoke Paul) `heimImplic` (assert $ _stoppedSmoking Paul)
 -- Nothing
