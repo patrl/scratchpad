@@ -1,14 +1,24 @@
 {-# LANGUAGE OverloadedLists, LambdaCase #-}
 
--- TODO lift propositional operators into a dynamic world by mapping operations to both
--- output value and output state.
-
 module Update where
 
 import           Control.Monad.State
--- import           Data.Functor.Identity
 import           Data.Set                       ( Set )
 import qualified Data.Set                      as Set
+
+-- unicode set theory symbols for readability
+
+(∩) :: Ord a => Set a -> Set a -> Set a
+(∩) = Set.intersection
+
+(∪) :: Ord a => Set a -> Set a -> Set a
+(∪) = Set.union
+
+(∖) :: Ord a => Set a -> Set a -> Set a
+(∖) = (Set.\\)
+
+(⊆) :: Ord a => Set a -> Set a -> Bool
+(⊆) = Set.isSubsetOf
 
 -- The type of truth values.
 type T = Bool
@@ -22,13 +32,7 @@ data S = W1 | W2 | W3 | W4 deriving (Eq, Show, Bounded, Enum, Ord)
 worlds :: Set S
 worlds = [W1 .. W4]
 
--- The type of Stalnakerian updates.
--- type U = State (Set S)
-
-type U = StateT (Set S) Maybe
-
--- One-place predicates
-
+-- One-place assertive predicates
 _smokesNow :: E -> Set S
 _smokesNow = \case
   Paul   -> [W1, W2]
@@ -44,44 +48,8 @@ _vapes = \case
   Paul   -> [W1, W2]
   Hubert -> [W3, W4]
 
-_stoppedSmoking :: E -> U (Set S)
-_stoppedSmoking = toPresuppPred _didSmoke (propNeg worlds <$> _smokesNow)
-
--- >>> propNeg <$> _smokesNow $ Paul
--- fromList [W3,W4]
-
-toPresuppPred :: (E -> Set S) -> (E -> Set S) -> E -> U (Set S)
-toPresuppPred presupp assertion x = StateT
-  (\c -> if c `propEntails` presupp x then Just (assertion x, c ∩ assertion x) else Nothing)
-
--- Takes a lifted Stalnakerian proposition, and turns it into a Stalnakerian assertion (i.e., a partial update of the common ground)
-assert :: U (Set S) -> U (Set S)
-assert m = StateT
-  (\c ->
-    let outputVal   = evalStateT m c
-        outputState = execStateT m c
-    in  case (outputVal, outputState) of
-          (Just p, Just c') -> Just (p, c' ∩ p)
-          (_     , _      ) -> Nothing
-  )
-
--- Lifts and asserts simultaneously.
-assertLift :: Set S -> U (Set S)
-assertLift = assert . return
-
--- unicode set theory symbols for readability
-
-(∩) :: Ord a => Set a -> Set a -> Set a
-(∩) = Set.intersection
-
-(∪) :: Ord a => Set a -> Set a -> Set a
-(∪) = Set.union
-
-(∖) :: Ord a => Set a -> Set a -> Set a
-(∖) = (Set.\\)
-
-(⊆) :: Ord a => Set a -> Set a -> Bool
-(⊆) = Set.isSubsetOf
+-- Some basic propositional operators. Note that I've supplied them with an additional parameter -- a contextual domain of worlds.
+-- The reason for this will become clear later on.
 
 propNeg :: Set S -> Set S -> Set S
 propNeg = (∖)
@@ -98,40 +66,60 @@ propDisj dom p q = dom ∩ (p ∪ q)
 propEntails :: Set S -> Set S -> Bool
 propEntails = (⊆)
 
+-- The type of (partial) Stalnakerian update.
+type U = StateT (Set S) Maybe
 
+-- A presuppositional predicate
+_stoppedSmoking :: E -> U (Set S)
+_stoppedSmoking = toPresuppPred _didSmoke (propNeg worlds <$> _smokesNow)
 
--- a helper function to update the ignorance context
+-- a helper function from a presupposition and an assertion to the corresponding presuppositional predicate.
+toPresuppPred :: (E -> Set S) -> (E -> Set S) -> E -> U (Set S)
+toPresuppPred presupp assertion x = StateT
+  (\c -> if c `propEntails` presupp x
+    then Just (assertion x, c ∩ assertion x)
+    else Nothing
+  )
+
+-- update the common ground.
+assert :: U (Set S) -> U (Set S)
+assert m = StateT
+  (\c ->
+    let outputVal   = evalStateT m c
+        outputState = execStateT m c
+    in  case (outputVal, outputState) of
+          (Just p, Just c') -> Just (p, c' ∩ p)
+          (_     , _      ) -> Nothing
+  )
+
+-- Lift into the monad and update.
+assertLift :: Set S -> U (Set S)
+assertLift = assert . return
+
+-- a helper function to update an ignorance context
 updIgnorance :: U (Set S) -> Maybe (Set S, Set S)
 updIgnorance = ($ worlds) . runStateT
 
 ---
 -- Heimian connectives.
 --
--- N.b. that the following definitions assume that every propositional node is subject to
--- the "assert" operator.
+-- N.b. that the following definitions assume that every propositional node is asserted.
 ---
 
-dynLift :: (Set S -> Set S -> Set S) -> U (Set S) -> U (Set S)
-dynLift op m = StateT (\c ->
-                         let outVal = evalStateT m c
-                             outState = execStateT m c
-                         in case (outVal,outState) of
-                           (Just p, Just c') -> Just (op worlds p, op c c')
-                           _ -> Nothing)
-
--- function for lifting a binary propositional operator into a dynamic operator
-dynLift2 :: (Set S -> Set S -> Set S -> Set S) -> U (Set S) -> U (Set S) -> U (Set S)
-dynLift2 op m n = StateT (\c ->
-                        let interVal = evalStateT m c
-                            interState = execStateT m c
-                        in  case (interVal, interState) of
-                          (Just p, Just c') ->
-                            let outVal = evalStateT n c'
-                                outState = execStateT n c'
-                            in case (outVal, outState) of
-                              (Just q, Just c'') -> Just (op worlds p q, op c c' c'')
-                              _ -> Nothing
-                          _ -> Nothing)
+heimConj :: U (Set S) -> U (Set S) -> U (Set S)
+m `heimConj` n = StateT
+  (\c ->
+    let iVal   = evalStateT m c -- first, feed the input state into the first conjunct.
+        iState = execStateT m c
+    in  case (iVal, iState) of
+          (Just p, Just c') ->
+            let oVal   = evalStateT n c' -- feed the first output state into the second conjunct, just in case it is defined.
+                oState = execStateT n c'
+            in  case (oVal, oState) of
+                  (Just q, Just c'') -> Just (p ∩ q, c'')
+                  _                  -> Nothing
+          _ -> Nothing -- undefinedness at any stage results in overall undefinedness (strong Kleene)
+  )
 
 heimImplic :: U (Set S) -> U (Set S) -> U (Set S)
 m `heimImplic` n = StateT
@@ -144,25 +132,8 @@ m `heimImplic` n = StateT
                 outState = execStateT n c'
             in  case (outVal, outState) of
                   (Just q, Just c'') -> Just (worlds ∖ p ∪ q, c ∖ c' ∪ c'')
-                  (_     , _       ) -> Nothing
-          (_, _) -> Nothing
-  )
-
-
-
-heimConj :: U (Set S) -> U (Set S) -> U (Set S)
-m `heimConj` n = StateT
-  (\c ->
-    let interVal   = evalStateT m c
-        interState = execStateT m c
-    in  case (interVal, interState) of
-          (Just p, Just c') ->
-            let outVal   = evalStateT n c'
-                outState = execStateT n c'
-            in  case (outVal, outState) of
-                  (Just q, Just c'') -> Just (p ∩ q, c' ∩ c'')
-                  (_     , _       ) -> Nothing
-          (_, _) -> Nothing
+                  _                  -> Nothing
+          _ -> Nothing
   )
 
 heimNeg :: U (Set S) -> U (Set S)
@@ -172,9 +143,8 @@ heimNeg m = StateT
         outputState = execStateT m c
     in  case (outputVal, outputState) of
           (Just p, Just c') -> Just (worlds ∖ p, c ∖ c')
-          (_     , _      ) -> Nothing
+          _                 -> Nothing
   )
-
 
 heimDisj :: U (Set S) -> U (Set S) -> U (Set S)
 m `heimDisj` n = StateT
@@ -187,10 +157,47 @@ m `heimDisj` n = StateT
                 outState = execStateT n (c ∖ c')
             in  case (outVal, outState) of
                   (Just q, Just c'') -> Just (p ∪ q, c' ∪ c'')
-                  (_     , _       ) -> Nothing
-          (_, _) -> Nothing
+                  _                  -> Nothing
+          _ -> Nothing
   )
 
+-- Now, we'll define a couple of functions to lift propositional connectives into their Heimian
+-- counterparts. This will work for everything except for disjunction.
+
+dynLift :: (Set S -> Set S -> Set S) -> U (Set S) -> U (Set S)
+dynLift op m = StateT
+  (\c ->
+    let outVal   = evalStateT m c
+        outState = execStateT m c
+    in  case (outVal, outState) of
+          (Just p, Just c') -> Just (op worlds p, op c c')
+          _                 -> Nothing
+  )
+
+dynLift2
+  :: (Set S -> Set S -> Set S -> Set S) -> U (Set S) -> U (Set S) -> U (Set S)
+dynLift2 op m n = StateT
+  (\c ->
+    let interVal   = evalStateT m c
+        interState = execStateT m c
+    in  case (interVal, interState) of
+          (Just p, Just c') ->
+            let outVal   = evalStateT n c'
+                outState = execStateT n c'
+            in  case (outVal, outState) of
+                  (Just q, Just c'') -> Just (op worlds p q, op c c' c'')
+                  _                  -> Nothing
+          _ -> Nothing
+  )
+
+---
+-- Facts demonstrated in the examples below:
+-- 
+-- heimConj == dynLift2 propConj
+-- heimImplic == dynLift2 propImplic
+-- heimNeg == dynLift propNeg
+-- heimDisj != dynLift2 propDisj
+---
 
 -- "Paul did smoke and Paul stopped smoking." (presupposition satisfaction)
 
@@ -267,4 +274,3 @@ m `heimDisj` n = StateT
 
 -- >>> updIgnorance $ (dynLift2 propDisj) (assertLift $ _didSmoke Paul) (_stoppedSmoking Paul)
 -- Just (fromList [W1,W3,W4],fromList [W1,W3])
-
