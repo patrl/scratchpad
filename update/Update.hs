@@ -68,6 +68,8 @@ propEntails = (⊆)
 
 -- The type of (partial) Stalnakerian update.
 type U = StateT (Set S) Maybe
+-- N.b. that without the boilerplate, this is:
+-- U a = Set S -> Maybe (a, Set S)
 
 -- A presuppositional predicate
 _stoppedSmoking :: E -> U (Set S)
@@ -89,7 +91,7 @@ assert m = StateT
         outputState = execStateT m c
     in  case (outputVal, outputState) of
           (Just p, Just c') -> Just (p, c' ∩ p)
-          (_     , _      ) -> Nothing
+          _                 -> Nothing
   )
 
 -- Lift into the monad and update.
@@ -192,7 +194,7 @@ dynLift2 op m n = StateT
 
 ---
 -- Facts demonstrated in the examples below:
--- 
+--
 -- heimConj == dynLift2 propConj
 -- heimImplic == dynLift2 propImplic
 -- heimNeg == dynLift propNeg
